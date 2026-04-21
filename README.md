@@ -3,9 +3,11 @@
 A visual reference card for building production-ready apps without spending a dollar.
 
 ## Live Demo
-> https://your-username.github.io/free-stack
+> https://devtint.github.io/free-stack
 
 ## What's Inside
+
+### Reference Guide (`index.html`)
 A single-page HTML reference covering the best free-tier services for indie hackers and solo builders:
 
 - **Vercel** — Frontend hosting & CDN
@@ -19,6 +21,20 @@ A single-page HTML reference covering the best free-tier services for indie hack
 - **Sentry** — Error tracking
 - **OneSignal** — Push notifications
 - **Umami** — Self-hosted analytics
+
+### Telegram Bot Guide (`telegram-bot-guide.html`)
+Step-by-step guide for building and deploying Telegram bots on the free stack.
+
+## Made With This Stack
+
+Real bots built and deployed using these exact free-tier services:
+
+| Bot | Handle | Hosting | Source |
+|-----|--------|---------|--------|
+| WarpConfGen | [@warpgen\_robot](https://t.me/warpgen_robot) | Vercel | [GitHub](https://github.com/devtint/WarpConfGen) |
+| TikTok Downloader | [@tiktokvideodownload\_robot](https://t.me/tiktokvideodownload_robot) | Render | [GitHub](https://github.com/devtint/TelegramtiktokDownloader) |
+
+**Author:** [@BadCodeWriter](https://t.me/BadCodeWriter) · [github.com/devtint](https://github.com/devtint)
 
 ## Deploy in 30 seconds
 1. Fork this repo

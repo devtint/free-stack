@@ -252,6 +252,79 @@
   }
   .flow-arrow { color: var(--muted); font-size: 0.8rem; }
 
+  /* Guide button */
+  .guide-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.4rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--accent5);
+    border: none;
+    border-radius: 4px;
+    padding: 0.5rem 1.2rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.2s;
+    font-weight: 700;
+  }
+  .guide-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+  .guide-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  /* Bot cards */
+  .bot-card-tg {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+  .bot-handle {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent5);
+    margin-bottom: 0.25rem;
+  }
+  .bot-links {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .bot-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.25rem 0.6rem;
+    border-radius: 3px;
+    text-decoration: none;
+    border: 1px solid;
+    transition: opacity 0.2s;
+  }
+  .bot-link:hover { opacity: 0.75; }
+  .bot-link.tg {
+    background: color-mix(in srgb, #29b6f6 12%, transparent);
+    color: #29b6f6;
+    border-color: #29b6f6;
+  }
+  .bot-link.gh {
+    background: color-mix(in srgb, #f0f6fc 10%, transparent);
+    color: #c9d1d9;
+    border-color: #30363d;
+  }
+  .bot-link.profile {
+    background: color-mix(in srgb, #ffc06a 12%, transparent);
+    color: var(--accent4);
+    border-color: var(--accent4);
+  }
+
   /* Footer */
   footer {
     text-align: center;
@@ -290,6 +363,12 @@
     <div class="tag">Zero Cost Architecture</div>
     <h1>The <span>Free</span> Stack</h1>
     <p class="subtitle">A production-ready setup using only free tiers — build, ship, and scale without spending a dollar.</p>
+    <a href="telegram-bot-guide.html" class="guide-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      Telegram Bot Guide
+    </a>
   </header>
 
   <!-- CORE INFRASTRUCTURE -->
@@ -623,6 +702,70 @@
       <span class="flow-arrow">→</span>
       <span class="flow-node">Render /health</span>
       <span class="flow-arrow">⟳ every 5 min</span>
+    </div>
+  </div>
+
+  <!-- MY BOTS -->
+  <div class="section-label">Made With This Stack</div>
+  <div class="grid grid-2">
+
+    <div class="card" style="--card-accent: #29b6f6;">
+      <div class="card-header">
+        <div class="card-icon">⚡</div>
+        <div>
+          <div class="card-title">WarpConfGen</div>
+          <div class="card-service">Vercel · Telegram Bot</div>
+        </div>
+      </div>
+      <div class="bot-handle">@warpgen_robot</div>
+      <p class="card-desc">Generates Warp/WireGuard configuration files on demand. Built with Python and deployed on Vercel.</p>
+      <div class="bot-links">
+        <a href="https://t.me/warpgen_robot" target="_blank" rel="noopener" class="bot-link tg">✈ Open Bot</a>
+        <a href="https://github.com/devtint/WarpConfGen" target="_blank" rel="noopener" class="bot-link gh">⌥ Source Code</a>
+      </div>
+      <div style="margin-top:0.75rem">
+        <span class="badge">Python</span>
+        <span class="badge">Vercel</span>
+        <span class="badge">WireGuard</span>
+      </div>
+    </div>
+
+    <div class="card" style="--card-accent: #29b6f6;">
+      <div class="card-header">
+        <div class="card-icon">🎵</div>
+        <div>
+          <div class="card-title">TikTok Downloader</div>
+          <div class="card-service">Render · Telegram Bot</div>
+        </div>
+      </div>
+      <div class="bot-handle">@tiktokvideodownload_robot</div>
+      <p class="card-desc">Download TikTok videos without watermark directly from Telegram. Hosted on Render with webhook mode.</p>
+      <div class="bot-links">
+        <a href="https://t.me/tiktokvideodownload_robot" target="_blank" rel="noopener" class="bot-link tg">✈ Open Bot</a>
+        <a href="https://github.com/devtint/TelegramtiktokDownloader" target="_blank" rel="noopener" class="bot-link gh">⌥ Source Code</a>
+      </div>
+      <div style="margin-top:0.75rem">
+        <span class="badge">Python</span>
+        <span class="badge">Render</span>
+        <span class="badge">TikTok API</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Author -->
+  <div class="card card-highlight" style="--card-accent: #ffc06a; margin-top: 0.75rem;">
+    <div class="card-header">
+      <div class="card-icon">👤</div>
+      <div>
+        <div class="card-title">devtint</div>
+        <div class="card-service">Author · Solo Builder</div>
+      </div>
+    </div>
+    <p class="card-desc">Building free-tier projects and open-source Telegram bots. All source code is on GitHub.</p>
+    <div class="bot-links">
+      <a href="https://t.me/BadCodeWriter" target="_blank" rel="noopener" class="bot-link profile">✦ Telegram Profile</a>
+      <a href="https://github.com/devtint" target="_blank" rel="noopener" class="bot-link gh">⌥ GitHub</a>
     </div>
   </div>
 

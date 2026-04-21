@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keep-Alive & Free Tier Strategies — Free Stack Guide</title>
+<meta name="description" content="Keep Render, Supabase, and other free tier services alive 24/7 using UptimeRobot, cron-job.org, and GitHub Actions.">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a0c10;--surface:#0e1117;--surface2:#161b24;--border:#1e2736;--ka:#22d3ee;--ka-dim:#0e9ab5;--green:#3de687;--yellow:#f5c842;--red:#ff5f6d;--purple:#c084fc;--orange:#fb923c;--blue:#60a5fa;--text:#cdd6f4;--muted:#6c7a96;--dim:#3a4560;}
+  *{margin:0;padding:0;box-sizing:border-box;}html{scroll-behavior:smooth;}
+  body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;line-height:1.7;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.4;}
+  nav{position:sticky;top:0;z-index:100;background:rgba(10,12,16,.9);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;}
+  .nav-brand{font-family:'JetBrains Mono',monospace;font-size:.85rem;color:var(--ka);letter-spacing:.08em;display:flex;align-items:center;gap:8px;text-decoration:none;}
+  .nav-brand span{color:var(--muted);}.nav-links{display:flex;gap:1.5rem;list-style:none;}
+  .nav-links a{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted);text-decoration:none;letter-spacing:.05em;transition:color .2s;}.nav-links a:hover{color:var(--ka);}
+  .back-btn{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:6px;transition:color .2s;}.back-btn:hover{color:var(--ka);}
+  .hero{position:relative;padding:7rem 2rem 5rem;max-width:1100px;margin:0 auto;}
+  .hero-badge{display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--ka);background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.2);padding:4px 12px;border-radius:100px;margin-bottom:1.5rem;letter-spacing:.05em;}
+  .hero-badge::before{content:'';width:6px;height:6px;background:var(--ka);border-radius:50%;animation:blink 2s infinite;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+  h1{font-size:clamp(2.5rem,6vw,5rem);font-weight:800;line-height:1.05;letter-spacing:-.02em;margin-bottom:1.5rem;}
+  h1 .accent{color:var(--ka);}h1 .dim{color:var(--muted);}
+  .hero-sub{font-size:1.1rem;color:var(--muted);max-width:560px;margin-bottom:3rem;font-weight:400;}
+  .toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:1rem;}
+  .toc-item{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;text-decoration:none;color:var(--text);font-size:.85rem;font-weight:600;transition:all .2s;position:relative;overflow:hidden;}
+  .toc-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;}
+  .toc-item:nth-child(1)::before{background:var(--red);}.toc-item:nth-child(2)::before{background:var(--ka);}.toc-item:nth-child(3)::before{background:var(--green);}.toc-item:nth-child(4)::before{background:var(--yellow);}.toc-item:nth-child(5)::before{background:var(--purple);}
+  .toc-item:hover{border-color:var(--ka);background:var(--surface2);transform:translateY(-2px);}
+  .toc-num{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--muted);}
+  .main{max-width:1100px;margin:0 auto;padding:0 2rem 6rem;}
+  .section{margin-bottom:5rem;animation:fadeUp .6s ease both;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+  .section-header{display:flex;align-items:flex-start;gap:1.2rem;margin-bottom:2rem;padding-bottom:1.2rem;border-bottom:1px solid var(--border);}
+  .section-num{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:4px 10px;border-radius:6px;margin-top:6px;white-space:nowrap;}
+  h2{font-size:clamp(1.5rem,3vw,2rem);font-weight:700;line-height:1.2;}h3{font-size:1.1rem;font-weight:600;margin:2rem 0 .8rem;color:var(--text);}
+  p{color:var(--muted);margin-bottom:1rem;font-size:.95rem;}strong{color:var(--text);}
+  .steps{display:flex;flex-direction:column;gap:1px;background:var(--border);border-radius:12px;overflow:hidden;margin:1.5rem 0;}
+  .step{background:var(--surface);padding:1.2rem 1.5rem;display:flex;gap:1rem;align-items:flex-start;transition:background .2s;}.step:hover{background:var(--surface2);}
+  .step-num{min-width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:700;margin-top:2px;background:rgba(34,211,238,.1);color:var(--ka);}
+  .step-content h4{font-size:.9rem;font-weight:700;color:var(--text);margin-bottom:3px;}.step-content p{margin:0;font-size:.85rem;}
+  .code-block{background:#080b10;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin:1.5rem 0;font-family:'JetBrains Mono',monospace;}
+  .code-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);}
+  .code-label{font-size:.7rem;color:var(--muted);letter-spacing:.06em;}
+  .dot{width:10px;height:10px;border-radius:50%;}.dot-r{background:#ff5f6d;}.dot-y{background:#f5c842;}.dot-g{background:#3de687;}
+  .code-body{padding:1.2rem 1.5rem;font-size:.82rem;line-height:1.8;overflow-x:auto;color:#abb2bf;}
+  .code-body .kw{color:#c678dd;}.code-body .fn{color:#61afef;}.code-body .str{color:#98c379;}.code-body .cm{color:#5c6370;font-style:italic;}.code-body .var{color:#e06c75;}.code-body .ty{color:#e5c07b;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin:1.5rem 0;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.3rem;transition:all .2s;}.card:hover{border-color:var(--dim);transform:translateY(-2px);}
+  .card-icon{font-size:1.5rem;margin-bottom:.7rem;}.card h4{font-size:.9rem;font-weight:700;margin-bottom:.5rem;color:var(--text);}.card p{font-size:.82rem;margin:0;}
+  .alert{display:flex;gap:12px;padding:1rem 1.2rem;border-radius:10px;margin:1.2rem 0;font-size:.85rem;}.alert-icon{font-size:1rem;margin-top:1px;flex-shrink:0;}.alert p{margin:0;}
+  .alert-warn{background:rgba(245,200,66,.06);border:1px solid rgba(245,200,66,.2);}.alert-warn p{color:#d4a820;}
+  .alert-tip{background:rgba(61,230,135,.06);border:1px solid rgba(61,230,135,.2);}.alert-tip p{color:#2fb866;}
+  .alert-danger{background:rgba(255,95,109,.06);border:1px solid rgba(255,95,109,.2);}.alert-danger p{color:#e04455;}
+  .alert-info{background:rgba(34,211,238,.05);border:1px solid rgba(34,211,238,.18);}.alert-info p{color:var(--ka-dim);}
+  code{font-family:'JetBrains Mono',monospace;font-size:.82em;background:var(--surface2);border:1px solid var(--border);padding:1px 6px;border-radius:4px;color:var(--ka);}
+  .compare{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin:1.5rem 0;}
+  .compare table{width:100%;border-collapse:collapse;font-size:.85rem;}
+  .compare th{background:var(--surface);padding:12px 16px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted);letter-spacing:.06em;border-bottom:1px solid var(--border);}
+  .compare td{padding:12px 16px;border-bottom:1px solid var(--border);color:var(--muted);vertical-align:top;}.compare tr:last-child td{border-bottom:none;}.compare tr:hover td{background:var(--surface2);}.compare td:first-child{color:var(--text);font-weight:600;}
+  footer{border-top:1px solid var(--border);padding:2rem;text-align:center;font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--muted);}footer span{color:var(--ka);}
+  ::-webkit-scrollbar{width:6px;height:6px;}::-webkit-scrollbar-track{background:var(--bg);}::-webkit-scrollbar-thumb{background:var(--dim);border-radius:3px;}
+  @media(max-width:640px){nav{padding:0 1rem;}.nav-links{display:none;}.hero{padding:4rem 1rem 3rem;}.main{padding:0 1rem 4rem;}h1{font-size:2.2rem;}}
+</style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="nav-brand">⚡ keepalive-guide <span>/ free-tier-strategies</span></a>
+  <ul class="nav-links">
+    <li><a href="#problem">01 The Problem</a></li>
+    <li><a href="#uptimerobot">02 UptimeRobot</a></li>
+    <li><a href="#cronjob">03 cron-job.org</a></li>
+    <li><a href="#actions">04 GitHub Actions</a></li>
+    <li><a href="#supabase">05 Supabase Tricks</a></li>
+  </ul>
+  <a href="index.html" class="back-btn">← Free Stack</a>
+</nav>
+
+<section class="hero">
+  <div class="hero-badge">Free Tier Strategies</div>
+  <h1>Keep your services<br><span class="accent">alive 24/7</span><br><span class="dim">for $0.</span></h1>
+  <p class="hero-sub">Free tier services spin down, sleep, and expire. This guide covers every strategy to keep Render bots, Supabase connections, and other free services running around the clock.</p>
+  <nav class="toc" aria-label="Table of contents">
+    <a href="#problem" class="toc-item"><span class="toc-num">01</span> The Spin-Down Problem</a>
+    <a href="#uptimerobot" class="toc-item"><span class="toc-num">02</span> UptimeRobot</a>
+    <a href="#cronjob" class="toc-item"><span class="toc-num">03</span> cron-job.org</a>
+    <a href="#actions" class="toc-item"><span class="toc-num">04</span> GitHub Actions</a>
+    <a href="#supabase" class="toc-item"><span class="toc-num">05</span> Supabase Tricks</a>
+  </nav>
+</section>
+
+<main class="main">
+
+  <section class="section" id="problem">
+    <div class="section-header"><span class="section-num">01</span><h2>The Spin-Down <span style="color:var(--red)">Problem</span></h2></div>
+    <p>Free tier hosting services save costs by spinning down containers when they're not receiving traffic. Here's what happens per platform:</p>
+    <div class="cards">
+      <div class="card"><div class="card-icon">🖥️</div><h4>Render Free</h4><p>Spins down after <strong>15 minutes of inactivity</strong>. Cold restart takes <strong>30–60 seconds</strong>. Incoming requests during startup are queued or dropped.</p></div>
+      <div class="card"><div class="card-icon">🚂</div><h4>Railway (hobby)</h4><p>Doesn't sleep, but has a <strong>$5/month credit limit</strong>. Monitor usage to avoid unexpected cutoffs.</p></div>
+      <div class="card"><div class="card-icon">🐍</div><h4>PythonAnywhere free</h4><p>Web apps must be manually reloaded every <strong>3 months</strong> unless you have a paid plan.</p></div>
+      <div class="card"><div class="card-icon">🐙</div><h4>GitHub Actions (public)</h4><p>Scheduled workflows are <strong>disabled after 60 days</strong> of no repo activity. Push a commit to re-enable.</p></div>
+    </div>
+    <div class="alert alert-danger"><span class="alert-icon">🚨</span><p><strong>For Telegram bots</strong>, spin-down is critical. If your Render service is sleeping when Telegram sends a webhook update, the update is lost forever (Telegram retries for ~5 minutes then gives up). Keep your bot warm at all times.</p></div>
+    <h3>The universal solution: a /health endpoint</h3>
+    <p>Every service you deploy should expose a <code>/health</code> endpoint. External pingers hit this every 5–10 minutes. That's it.</p>
+    <div class="code-block">
+      <div class="code-header"><div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><span class="code-label">FastAPI / Flask</span></div>
+      <div class="code-body"><span class="cm"># FastAPI</span>
+<span class="kw">@</span>app.<span class="fn">get</span>(<span class="str">"/health"</span>)
+<span class="kw">async def</span> <span class="fn">health</span>():
+    <span class="kw">return</span> {<span class="str">"status"</span>: <span class="str">"ok"</span>, <span class="str">"service"</span>: <span class="str">"bot"</span>}
+
+<span class="cm"># Flask</span>
+<span class="kw">@</span>app.<span class="fn">route</span>(<span class="str">"/health"</span>)
+<span class="kw">def</span> <span class="fn">health</span>():
+    <span class="kw">return</span> {<span class="str">"status"</span>: <span class="str">"ok"</span>}
+
+<span class="cm"># Express (Node.js)</span>
+app.<span class="fn">get</span>(<span class="str">'/health'</span>, (req, res) => res.<span class="fn">json</span>({ status: <span class="str">'ok'</span> }))</div>
+    </div>
+  </section>
+
+  <section class="section" id="uptimerobot">
+    <div class="section-header"><span class="section-num">02</span><h2>UptimeRobot <span style="color:var(--ka)">Setup</span></h2></div>
+    <p><strong>uptimerobot.com</strong> — Free account: 50 monitors, 5-minute check interval, email/Telegram/Slack alerts when your service goes down. This is the most widely-used keep-alive solution.</p>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-content"><h4>Sign up at uptimerobot.com</h4><p>Free account — no credit card. Email verification required.</p></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-content"><h4>Add New Monitor → HTTP(s)</h4><p>Friendly Name: <code>My Bot - Keep Alive</code><br>URL: <code>https://your-app.onrender.com/health</code><br>Monitoring Interval: <code>5 minutes</code></p></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-content"><h4>Set up Telegram alerts (optional but great)</h4><p>My Settings → Alert Contacts → Add Alert Contact → Telegram. Follow the bot setup to link your Telegram account. Get notified instantly when your service goes down.</p></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-content"><h4>That's it — monitor is active</h4><p>UptimeRobot pings your /health every 5 min. Render stays warm. You get an alert if it ever actually goes down.</p></div></div>
+    </div>
+    <div class="alert alert-tip"><span class="alert-icon">💡</span><p><strong>50 free monitors</strong> = you can keep 50 Render services alive simultaneously. More than enough for any solo builder's portfolio.</p></div>
+  </section>
+
+  <section class="section" id="cronjob">
+    <div class="section-header"><span class="section-num">03</span><h2>cron-job.org <span style="color:var(--green)">Setup</span></h2></div>
+    <p><strong>cron-job.org</strong> — Free, unlimited cron jobs that make HTTP requests on a schedule. More flexible than UptimeRobot — you can hit POST endpoints, send headers, and run any schedule.</p>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-content"><h4>Sign up at cron-job.org</h4><p>Free, no credit card. They've been reliable for years.</p></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-content"><h4>Create Cronjob → Enter your URL</h4><p>URL: <code>https://your-app.onrender.com/health</code><br>Schedule: Every 10 minutes<br>Method: GET</p></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-content"><h4>Enable notifications on failure</h4><p>Notification → Send email on failure. Useful as a second alert layer alongside UptimeRobot.</p></div></div>
+    </div>
+    <h3>Advanced: ping with custom schedule</h3>
+    <div class="code-block">
+      <div class="code-header"><div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><span class="code-label">cron-job.org schedule examples</span></div>
+      <div class="code-body"><span class="cm"># Every 10 minutes</span>
+*/10 * * * *
+
+<span class="cm"># Every 5 minutes (most aggressive, recommended for bots)</span>
+*/5 * * * *
+
+<span class="cm"># Every hour at :30 (for less critical services)</span>
+30 * * * *
+
+<span class="cm"># Weekdays 9am-6pm only (save pings for when users are active)</span>
+*/10 9-18 * * 1-5</div>
+    </div>
+  </section>
+
+  <section class="section" id="actions">
+    <div class="section-header"><span class="section-num">04</span><h2>GitHub Actions <span style="color:var(--yellow)">Approach</span></h2></div>
+    <p>Use GitHub Actions scheduled workflows as a keep-alive. Free for public repos (unlimited minutes). Best for triggering jobs, not just pings.</p>
+    <div class="code-block">
+      <div class="code-header"><div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><span class="code-label">.github/workflows/keepalive.yml</span></div>
+      <div class="code-body">name: Keep Services Alive
+
+on:
+  schedule:
+    - cron: <span class="str">'*/10 * * * *'</span>
+  workflow_dispatch:  <span class="cm"># allow manual trigger</span>
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render bot
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            <span class="str">"${{ secrets.RENDER_APP_URL }}"</span>/health)
+          echo "Response: $response"
+          if [ "$response" != "200" ]; then
+            echo "::error::Service returned $response"
+            <span class="kw">exit</span> 1
+          fi</div>
+    </div>
+    <div class="alert alert-warn"><span class="alert-icon">⚠️</span><p><strong>GitHub Actions cron has a minimum interval of 5 minutes</strong>, and scheduled jobs on repos with no activity for 60 days are paused automatically. Don't rely on this as your only keep-alive mechanism.</p></div>
+    <h3>Best strategy: use all three</h3>
+    <div class="compare">
+      <table>
+        <thead><tr><th>Tool</th><th>Interval</th><th>Alerts</th><th>Best Role</th></tr></thead>
+        <tbody>
+          <tr><td>UptimeRobot</td><td>5 min</td><td>Email + Telegram</td><td>Primary keep-alive + downtime alerts</td></tr>
+          <tr><td>cron-job.org</td><td>5–10 min</td><td>Email</td><td>Backup pinger + POST endpoints</td></tr>
+          <tr><td>GitHub Actions</td><td>5+ min</td><td>Email (on failure)</td><td>Scheduled automation jobs</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section" id="supabase">
+    <div class="section-header"><span class="section-num">05</span><h2>Supabase <span style="color:var(--purple)">Free Tier Tricks</span></h2></div>
+    <p>Supabase free projects <strong>pause after 7 days of inactivity</strong>. Here's how to prevent it and get the most out of the free plan.</p>
+    <div class="cards">
+      <div class="card"><div class="card-icon">💤</div><h4>Pause after 7 days</h4><p>Free projects pause if no API calls are made for 7 days. Same keep-alive solutions apply — ping <code>/rest/v1/</code> every day.</p></div>
+      <div class="card"><div class="card-icon">📊</div><h4>500 MB DB limit</h4><p>Includes your tables + indexes. Use <code>VACUUM</code> regularly. Delete old rows. Don't store binary data in DB — use Storage instead.</p></div>
+      <div class="card"><div class="card-icon">🔌</div><h4>2 free projects</h4><p>Only 2 active projects on free plan. Pause one if you need to create another. Paused projects don't count toward the limit.</p></div>
+      <div class="card"><div class="card-icon">⚡</div><h4>Edge Functions</h4><p>500k invocations/month free. Use for webhooks, background tasks, and scheduled jobs instead of a separate server.</p></div>
+    </div>
+    <h3>Ping Supabase to prevent pausing</h3>
+    <div class="code-block">
+      <div class="code-header"><div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><span class="code-label">.github/workflows/ping-supabase.yml</span></div>
+      <div class="code-body">name: Ping Supabase (prevent pause)
+
+on:
+  schedule:
+    - cron: <span class="str">'0 12 * * *'</span>  <span class="cm"># once a day at noon UTC</span>
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          curl -s \
+            -H <span class="str">"apikey: ${{ secrets.SUPABASE_ANON_KEY }}"</span> \
+            -H <span class="str">"Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"</span> \
+            <span class="str">"${{ secrets.SUPABASE_URL }}"</span>/rest/v1/ \
+            > /dev/null
+          echo <span class="str">"Supabase pinged!"</span></div>
+    </div>
+    <div class="alert alert-tip"><span class="alert-icon">💡</span><p><strong>One daily ping is enough</strong> to prevent Supabase project pausing. Don't overdo it — you have 500k edge function invocations/month to spend on actual features.</p></div>
+  </section>
+
+</main>
+<footer><span>keepalive-guide</span> · part of the Free Stack · <a href="index.html" style="color:var(--ka);text-decoration:none;">← back to index</a></footer>
+</body>
+</html>

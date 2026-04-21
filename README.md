@@ -23,10 +23,13 @@ A single-page HTML reference covering the best free-tier services for indie hack
 - **Umami** — Self-hosted analytics
 
 ### Reference Guides
-- **`index.html`** — Main free stack reference card
 - **`telegram-bot-guide.html`** — Build & deploy Telegram bots on Render
+- **`render-guide.html`** — Web services, keep-alive, webhooks, render.yaml on Render
 - **`supabase-guide.html`** — Database, Auth, Storage, Realtime on Supabase
 - **`vercel-guide.html`** — Deploy, Env Vars, Serverless Functions, Domains on Vercel
+- **`cloudflare-guide.html`** — DNS, Workers, R2 storage, proxy setup on Cloudflare
+- **`github-guide.html`** — Repos, Actions CI/CD, Secrets, Pages, branch protection
+- **`keepalive-guide.html`** — UptimeRobot, cron-job.org, Supabase anti-pause strategies
 
 ## Made With This Stack
 

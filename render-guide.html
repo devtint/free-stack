@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Render — Complete Dev Guide</title>
+<meta name="description" content="Complete Render guide: web services, environment variables, keep-alive, webhooks, and free tier tips.">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10; --surface: #0e1117; --surface2: #161b24; --border: #1e2736;
+    --rd: #7c6aff; --rd-dim: #5a48d4;
+    --green: #3de687; --yellow: #f5c842; --red: #ff5f6d; --purple: #c084fc;
+    --orange: #fb923c; --blue: #60a5fa; --text: #cdd6f4; --muted: #6c7a96; --dim: #3a4560;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; line-height: 1.7; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; opacity: 0.4; }
+  nav { position: sticky; top: 0; z-index: 100; background: rgba(10,12,16,0.9); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .nav-brand { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--rd); letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; text-decoration: none; }
+  .nav-brand span { color: var(--muted); }
+  .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+  .nav-links a { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--muted); text-decoration: none; letter-spacing: 0.05em; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--rd); }
+  .back-btn { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--muted); text-decoration: none; display: flex; align-items: center; gap: 6px; transition: color 0.2s; }
+  .back-btn:hover { color: var(--rd); }
+  .hero { position: relative; padding: 7rem 2rem 5rem; max-width: 1100px; margin: 0 auto; }
+  .hero-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--rd); background: rgba(124,106,255,0.08); border: 1px solid rgba(124,106,255,0.2); padding: 4px 12px; border-radius: 100px; margin-bottom: 1.5rem; letter-spacing: 0.05em; }
+  .hero-badge::before { content: ''; width: 6px; height: 6px; background: var(--rd); border-radius: 50%; animation: blink 2s infinite; }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+  h1 { font-size: clamp(2.5rem, 6vw, 5rem); font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 1.5rem; }
+  h1 .accent { color: var(--rd); } h1 .dim { color: var(--muted); }
+  .hero-sub { font-size: 1.1rem; color: var(--muted); max-width: 560px; margin-bottom: 3rem; font-weight: 400; }
+  .toc { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 1rem; }
+  .toc-item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; text-decoration: none; color: var(--text); font-size: 0.85rem; font-weight: 600; transition: all 0.2s; position: relative; overflow: hidden; }
+  .toc-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 3px 0 0 3px; }
+  .toc-item:nth-child(1)::before { background: var(--rd); } .toc-item:nth-child(2)::before { background: var(--green); }
+  .toc-item:nth-child(3)::before { background: var(--yellow); } .toc-item:nth-child(4)::before { background: var(--red); }
+  .toc-item:nth-child(5)::before { background: var(--orange); } .toc-item:nth-child(6)::before { background: var(--blue); }
+  .toc-item:hover { border-color: var(--rd); background: var(--surface2); transform: translateY(-2px); }
+  .toc-num { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--muted); }
+  .main { max-width: 1100px; margin: 0 auto; padding: 0 2rem 6rem; }
+  .section { margin-bottom: 5rem; animation: fadeUp 0.6s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+  .section-header { display: flex; align-items: flex-start; gap: 1.2rem; margin-bottom: 2rem; padding-bottom: 1.2rem; border-bottom: 1px solid var(--border); }
+  .section-num { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); padding: 4px 10px; border-radius: 6px; margin-top: 6px; white-space: nowrap; }
+  h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; line-height: 1.2; }
+  h3 { font-size: 1.1rem; font-weight: 600; margin: 2rem 0 0.8rem; color: var(--text); }
+  p { color: var(--muted); margin-bottom: 1rem; font-size: 0.95rem; } strong { color: var(--text); }
+  .steps { display: flex; flex-direction: column; gap: 1px; background: var(--border); border-radius: 12px; overflow: hidden; margin: 1.5rem 0; }
+  .step { background: var(--surface); padding: 1.2rem 1.5rem; display: flex; gap: 1rem; align-items: flex-start; transition: background 0.2s; }
+  .step:hover { background: var(--surface2); }
+  .step-num { min-width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 700; margin-top: 2px; background: rgba(124,106,255,0.12); color: var(--rd); }
+  .step-content h4 { font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .step-content p { margin: 0; font-size: 0.85rem; }
+  .code-block { background: #080b10; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 1.5rem 0; font-family: 'JetBrains Mono', monospace; }
+  .code-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .code-label { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.06em; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; } .dot-r { background: #ff5f6d; } .dot-y { background: #f5c842; } .dot-g { background: #3de687; }
+  .code-body { padding: 1.2rem 1.5rem; font-size: 0.82rem; line-height: 1.8; overflow-x: auto; color: #abb2bf; }
+  .code-body .kw { color: #c678dd; } .code-body .fn { color: #61afef; } .code-body .str { color: #98c379; }
+  .code-body .cm { color: #5c6370; font-style: italic; } .code-body .var { color: #e06c75; }
+  .code-body .num { color: #d19a66; } .code-body .op { color: #56b6c2; } .code-body .ty { color: #e5c07b; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.3rem; transition: all 0.2s; }
+  .card:hover { border-color: var(--dim); transform: translateY(-2px); }
+  .card-icon { font-size: 1.5rem; margin-bottom: 0.7rem; }
+  .card h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text); }
+  .card p { font-size: 0.82rem; margin: 0; }
+  .compare { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 1.5rem 0; }
+  .compare table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .compare th { background: var(--surface); padding: 12px 16px; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+  .compare td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--muted); vertical-align: top; }
+  .compare tr:last-child td { border-bottom: none; } .compare tr:hover td { background: var(--surface2); }
+  .compare td:first-child { color: var(--text); font-weight: 600; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; font-weight: 600; }
+  .tag-green { background: rgba(61,230,135,0.12); color: var(--green); } .tag-yellow { background: rgba(245,200,66,0.12); color: var(--yellow); }
+  .tag-red { background: rgba(255,95,109,0.12); color: var(--red); } .tag-rd { background: rgba(124,106,255,0.12); color: var(--rd); }
+  .alert { display: flex; gap: 12px; padding: 1rem 1.2rem; border-radius: 10px; margin: 1.2rem 0; font-size: 0.85rem; }
+  .alert-icon { font-size: 1rem; margin-top: 1px; flex-shrink: 0; } .alert p { margin: 0; }
+  .alert-warn { background: rgba(245,200,66,0.06); border: 1px solid rgba(245,200,66,0.2); } .alert-warn p { color: #d4a820; }
+  .alert-tip { background: rgba(61,230,135,0.06); border: 1px solid rgba(61,230,135,0.2); } .alert-tip p { color: #2fb866; }
+  .alert-danger { background: rgba(255,95,109,0.06); border: 1px solid rgba(255,95,109,0.2); } .alert-danger p { color: #e04455; }
+  .alert-info { background: rgba(124,106,255,0.06); border: 1px solid rgba(124,106,255,0.2); } .alert-info p { color: var(--rd); }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: var(--surface2); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; color: var(--rd); }
+  .timeline { position: relative; padding-left: 2rem; margin: 1.5rem 0; }
+  .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 1px; background: var(--border); }
+  .tl-item { position: relative; margin-bottom: 1.5rem; }
+  .tl-item::before { content: ''; position: absolute; left: -1.6rem; top: 6px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--bg); }
+  .tl-item:nth-child(1)::before { background: var(--rd); } .tl-item:nth-child(2)::before { background: var(--green); }
+  .tl-item:nth-child(3)::before { background: var(--yellow); } .tl-item:nth-child(4)::before { background: var(--purple); }
+  .tl-item:nth-child(5)::before { background: var(--orange); } .tl-item:nth-child(6)::before { background: var(--red); }
+  .tl-title { font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .tl-desc { font-size: 0.83rem; color: var(--muted); }
+  .env-table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; margin: 1.2rem 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .env-table th { background: var(--surface); padding: 10px 14px; text-align: left; font-size: 0.68rem; letter-spacing: 0.06em; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .env-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .env-table tr:last-child td { border-bottom: none; }
+  .env-table td:first-child { color: var(--rd); } .env-table td:nth-child(2) { color: var(--green); } .env-table td:nth-child(3) { color: var(--muted); }
+  footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--muted); }
+  footer span { color: var(--rd); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; } ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 3px; } ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  @media (max-width: 640px) { nav { padding: 0 1rem; } .nav-links { display: none; } .hero { padding: 4rem 1rem 3rem; } .main { padding: 0 1rem 4rem; } h1 { font-size: 2.2rem; } .compare { overflow-x: auto; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-brand">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    render-guide <span>/ complete-reference</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#service">01 Web Service</a></li>
+    <li><a href="#envvars">02 Env Vars</a></li>
+    <li><a href="#keepalive">03 Keep-Alive</a></li>
+    <li><a href="#webhook">04 Webhooks</a></li>
+    <li><a href="#yaml">05 render.yaml</a></li>
+    <li><a href="#limits">06 Limits</a></li>
+  </ul>
+  <a href="index.html" class="back-btn">← Free Stack</a>
+</nav>
+
+<section class="hero">
+  <div class="hero-badge">Complete Developer Reference</div>
+  <h1>Deploy on<br><span class="accent">Render</span><br><span class="dim">the right way.</span></h1>
+  <p class="hero-sub">From first deploy to production — web services, env vars, the spin-down fix, webhooks for bots, and render.yaml. All on the free tier. All in one page.</p>
+  <nav class="toc" aria-label="Table of contents">
+    <a href="#service" class="toc-item"><span class="toc-num">01</span> Creating a Web Service</a>
+    <a href="#envvars" class="toc-item"><span class="toc-num">02</span> Environment Variables</a>
+    <a href="#keepalive" class="toc-item"><span class="toc-num">03</span> Keep-Alive Fix</a>
+    <a href="#webhook" class="toc-item"><span class="toc-num">04</span> Webhooks & Bots</a>
+    <a href="#yaml" class="toc-item"><span class="toc-num">05</span> render.yaml (IaC)</a>
+    <a href="#limits" class="toc-item"><span class="toc-num">06</span> Free Tier Limits</a>
+  </nav>
+</section>
+
+<main class="main">
+
+  <!-- ═══ SECTION 1 ═══ -->
+  <section class="section" id="service">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2>Creating a <span style="color:var(--rd)">Web Service</span></h2>
+    </div>
+    <p>Render deploys any Python, Node.js, Go, Ruby, or Docker app directly from GitHub. The free tier gives you <strong>750 hours/month</strong> — enough for one always-on web service.</p>
+
+    <h3>Step-by-step setup</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-content"><h4>Push your code to GitHub</h4><p>Your app must be in a GitHub repo. Render connects to GitHub and deploys on every push to your branch.</p></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-content"><h4>Go to render.com → New → Web Service</h4><p>Sign in with GitHub. Click <strong>New +</strong> → <strong>Web Service</strong>. Select your repository from the list.</p></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-content"><h4>Configure runtime and commands</h4><p>Render auto-detects most frameworks. Set <strong>Build Command</strong> and <strong>Start Command</strong> manually if needed (see table below).</p></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-content"><h4>Choose Free plan</h4><p>Select <strong>Free</strong> instance type. Note: free services spin down after 15 min of inactivity. Fix this in Section 03.</p></div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-content"><h4>Add environment variables</h4><p>Go to <strong>Environment</strong> tab after creation and add your secrets. Never commit <code>.env</code> to git.</p></div></div>
+      <div class="step"><div class="step-num">6</div><div class="step-content"><h4>Deploy</h4><p>Click <strong>Create Web Service</strong>. First deploy takes 2–5 min. You'll get a URL like <code>https://your-app.onrender.com</code>.</p></div></div>
+    </div>
+
+    <h3>Runtime commands reference</h3>
+    <div class="compare">
+      <table>
+        <thead><tr><th>Runtime</th><th>Build Command</th><th>Start Command</th></tr></thead>
+        <tbody>
+          <tr><td>Python (FastAPI)</td><td><code>pip install -r requirements.txt</code></td><td><code>uvicorn main:app --host 0.0.0.0 --port $PORT</code></td></tr>
+          <tr><td>Python (Flask)</td><td><code>pip install -r requirements.txt</code></td><td><code>gunicorn app:app</code></td></tr>
+          <tr><td>Node.js</td><td><code>npm install</code></td><td><code>node index.js</code></td></tr>
+          <tr><td>Node.js (TS)</td><td><code>npm install && npm run build</code></td><td><code>node dist/index.js</code></td></tr>
+          <tr><td>Docker</td><td>(auto from Dockerfile)</td><td>(defined in CMD)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="alert alert-tip">
+      <span class="alert-icon">💡</span>
+      <p><strong>Always bind to <code>0.0.0.0</code> and use <code>$PORT</code>.</strong> Render dynamically assigns the port. Hardcoding <code>8000</code> or <code>localhost</code> will cause deploy failures.</p>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 2 ═══ -->
+  <section class="section" id="envvars">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2>Environment <span style="color:var(--green)">Variables</span></h2>
+    </div>
+    <p>Never hardcode API keys. Render lets you set environment variables per service via the dashboard or <code>render.yaml</code>. They're injected at build and runtime.</p>
+
+    <h3>Adding variables in the dashboard</h3>
+    <div class="timeline">
+      <div class="tl-item"><div class="tl-title">Service page → Environment tab</div><div class="tl-desc">Go to your service → click <strong>Environment</strong> tab on the left sidebar.</div></div>
+      <div class="tl-item"><div class="tl-title">Add Key-Value pairs</div><div class="tl-desc">Click <strong>Add Environment Variable</strong>. Enter your key (e.g. <code>BOT_TOKEN</code>) and value. Click <strong>Save Changes</strong>.</div></div>
+      <div class="tl-item"><div class="tl-title">Trigger a redeploy</div><div class="tl-desc">Env var changes don't auto-redeploy. Go to <strong>Manual Deploy</strong> → <strong>Deploy latest commit</strong>.</div></div>
+      <div class="tl-item"><div class="tl-title">Use Secret Files for large configs</div><div class="tl-desc">For JSON credentials or large configs, use <strong>Secret Files</strong> (also in the Environment tab). They're mounted as files in your container.</div></div>
+    </div>
+
+    <h3>Reading in Python</h3>
+    <div class="code-block">
+      <div class="code-header"><div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><span class="code-label">config.py</span></div>
+      <div class="code-body"><span class="kw">import</span> os
+<span class="kw">from</span> dotenv <span class="kw">import</span> load_dotenv
+
+load_dotenv()  <span class="cm"># loads .env locally, ignored in production</span>
+
+<span class="var">BOT_TOKEN</span>     = os.<span class="fn">getenv</span>(<span class="str">"BOT_TOKEN"</span>)
+<span class="var">SUPABASE_URL</span>  = os.<span class="fn">getenv</span>(<span class="str">"SUPABASE_URL"</span>)
+<span class="var">SUPABASE_KEY</span>  = os.<span class="fn">getenv</span>(<span class="str">"SUPABASE_KEY"</span>)
+<span class="var">WEBHOOK_URL</span>   = os.<span class="fn">getenv</span>(<span class="str">"RENDER_EXTERNAL_URL"</span>)  <span class="cm"># Render injects this automatically</span>
+
+<span class="kw">if not</span> <span class="var">BOT_TOKEN</span>:
+    <span class="kw">raise</span> <span class="ty">ValueError</span>(<span class="str">"BOT_TOKEN is not set!"</span>)  <span class="cm"># crash early if missing</span></div>
+    </div>
+
+    <h3>Render's built-in env vars</h3>
+    <table class="env-table">
+      <thead><tr><th>Variable</th><th>Value</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td>RENDER_EXTERNAL_URL</td><td>https://your-app.onrender.com</td><td>Set webhook URL automatically</td></tr>
+        <tr><td>RENDER_SERVICE_NAME</td><td>my-telegram-bot</td><td>Identify service in logs</td></tr>
+        <tr><td>PORT</td><td>10000 (dynamic)</td><td>Always bind your server to this</td></tr>
+        <tr><td>RENDER</td><td>true</td><td>Detect if running on Render</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══ SECTION 3 ═══ -->
+  <section class="section" id="keepalive">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2>The Keep-Alive <span style="color:var(--yellow)">Fix</span></h2>
+    </div>
+    <p>Free Render services <strong>spin down after 15 minutes of no HTTP traffic</strong>. The next request triggers a cold start (~30 seconds). For bots and APIs this means dropped messages and slow responses.</p>
+
+    <div class="alert alert-danger">
+      <span class="alert-icon">🚨</span>
+      <p><strong>This is the #1 gotcha on the free tier.</strong> Telegram webhook updates that arrive during cold start are <em>lost</em> — Telegram will retry a few times but if your service doesn't respond fast enough, the update is dropped.</p>
+    </div>
+
+    <h3>The fix: a health endpoint + external pinger</h3>
+    <div class="code-block">
+      <div class="code-header"><div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><span class="code-label">main.py — health endpoint</span></div>
+      <div class="code-body"><span class="kw">from</span> fastapi <span class="kw">import</span> <span class="ty">FastAPI</span>
+
+app = <span class="ty">FastAPI</span>()
+
+<span class="kw">@</span>app.<span class="fn">get</span>(<span class="str">"/health"</span>)
+<span class="kw">async def</span> <span class="fn">health</span>():
+    <span class="kw">return</span> {<span class="str">"status"</span>: <span class="str">"ok"</span>}
+
+<span class="cm"># UptimeRobot or cron-job.org pings this every 5–10 minutes</span>
+<span class="cm"># keeping the service warm with zero cost</span></div>
+    </div>
+
+    <h3>Option A — UptimeRobot (recommended)</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-content"><h4>Create account at uptimerobot.com</h4><p>Free account gives you 50 monitors. No credit card needed.</p></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-content"><h4>New Monitor → HTTP(s)</h4><p>URL: <code>https://your-app.onrender.com/health</code>. Monitoring interval: <strong>5 minutes</strong>.</p></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-content"><h4>Enable email/Telegram alerts</h4><p>Get notified when your service actually goes down (not just wakes up). Free on all plans.</p></div></div>
+    </div>
+
+    <h3>Option B — cron-job.org</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-content"><h4>Sign up at cron-job.org</h4><p>Free, unlimited cron jobs. No credit card.</p></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-content"><h4>Create job → URL: your /health endpoint</h4><p>Set schedule to every 10 minutes. Method: GET. That's it.</p></div></div>
+    </div>
+
+    <div class="alert alert-tip">
+      <span class="alert-icon">💡</span>
+      <p><strong>Use both.</strong> UptimeRobot for downtime alerts + cron-job.org as a backup pinger. They complement each other and both are free.</p>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 4 ═══ -->
+  <section class="section" id="webhook">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <h2>Webhooks & <span style="color:var(--red)">Bot Setup</span></h2>
+    </div>
+    <p>Use <strong>webhook mode</strong> instead of polling for bots on Render. Polling runs a loop that wastes CPU and still can't beat webhook's simplicity. With webhooks, Telegram pushes updates directly to your endpoint.</p>
+
+    <h3>Full webhook setup (python-telegram-bot)</h3>
+    <div class="code-block">
+      <div class="code-header"><div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><span class="code-label">main.py — webhook server</span></div>
+      <div class="code-body"><span class="kw">import</span> os
+<span class="kw">from</span> fastapi <span class="kw">import</span> <span class="ty">FastAPI</span>, <span class="ty">Request</span>
+<span class="kw">from</span> telegram <span class="kw">import</span> <span class="ty">Update</span>, <span class="ty">Bot</span>
+<span class="kw">from</span> telegram.ext <span class="kw">import</span> <span class="ty">Application</span>, <span class="ty">CommandHandler</span>
+
+<span class="var">BOT_TOKEN</span>   = os.<span class="fn">getenv</span>(<span class="str">"BOT_TOKEN"</span>)
+<span class="var">WEBHOOK_URL</span> = os.<span class="fn">getenv</span>(<span class="str">"RENDER_EXTERNAL_URL"</span>)  <span class="cm"># auto-set by Render</span>
+
+app = <span class="ty">FastAPI</span>()
+ptb = <span class="ty">Application</span>.<span class="fn">builder</span>().<span class="fn">token</span>(<span class="var">BOT_TOKEN</span>).<span class="fn">build</span>()
+
+<span class="kw">async def</span> <span class="fn">start</span>(update: <span class="ty">Update</span>, context):
+    <span class="kw">await</span> update.message.<span class="fn">reply_text</span>(<span class="str">"👋 Hello! I'm alive."</span>)
+
+ptb.<span class="fn">add_handler</span>(<span class="ty">CommandHandler</span>(<span class="str">"start"</span>, start))
+
+<span class="kw">@</span>app.<span class="fn">on_event</span>(<span class="str">"startup"</span>)
+<span class="kw">async def</span> <span class="fn">startup</span>():
+    <span class="kw">await</span> ptb.<span class="fn">initialize</span>()
+    <span class="kw">await</span> ptb.bot.<span class="fn">set_webhook</span>(<span class="str">f"</span>{<span class="var">WEBHOOK_URL</span>}<span class="str">/webhook"</span>)
+
+<span class="kw">@</span>app.<span class="fn">post</span>(<span class="str">"/webhook"</span>)
+<span class="kw">async def</span> <span class="fn">webhook</span>(request: <span class="ty">Request</span>):
+    data = <span class="kw">await</span> request.<span class="fn">json</span>()
+    update = <span class="ty">Update</span>.<span class="fn">de_json</span>(data, ptb.bot)
+    <span class="kw">await</span> ptb.<span class="fn">process_update</span>(update)
+    <span class="kw">return</span> {<span class="str">"ok"</span>: <span class="kw">True</span>}
+
+<span class="kw">@</span>app.<span class="fn">get</span>(<span class="str">"/health"</span>)
+<span class="kw">async def</span> <span class="fn">health</span>():
+    <span class="kw">return</span> {<span class="str">"status"</span>: <span class="str">"ok"</span>}</div>
+    </div>
+
+    <div class="alert alert-warn">
+      <span class="alert-icon">⚠️</span>
+      <p><strong>One bot = one webhook URL.</strong> You can't set the same bot token to multiple webhook URLs. If you redeploy to a new Render URL, update the webhook: <code>https://api.telegram.org/bot&lt;TOKEN&gt;/setWebhook?url=&lt;NEW_URL&gt;/webhook</code></p>
+    </div>
+
+    <h3>Check / delete webhook manually</h3>
+    <div class="code-block">
+      <div class="code-header"><div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><span class="code-label">browser URL bar (replace TOKEN)</span></div>
+      <div class="code-body"><span class="cm"># Check current webhook info</span>
+https://api.telegram.org/bot<span class="var">TOKEN</span>/getWebhookInfo
+
+<span class="cm"># Delete webhook (switch to polling)</span>
+https://api.telegram.org/bot<span class="var">TOKEN</span>/deleteWebhook
+
+<span class="cm"># Set new webhook</span>
+https://api.telegram.org/bot<span class="var">TOKEN</span>/setWebhook?url=https://your-app.onrender.com/webhook</div>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 5 ═══ -->
+  <section class="section" id="yaml">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <h2>render.yaml <span style="color:var(--orange)">(Infrastructure as Code)</span></h2>
+    </div>
+    <p>Commit a <code>render.yaml</code> to your repo and Render reads it to auto-configure your services. No clicking through the dashboard — deploy everything from code.</p>
+
+    <div class="code-block">
+      <div class="code-header"><div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><span class="code-label">render.yaml — full example</span></div>
+      <div class="code-body">services:
+  - type: web
+    name: my-telegram-bot
+    runtime: python
+    plan: free
+    buildCommand: <span class="str">"pip install -r requirements.txt"</span>
+    startCommand: <span class="str">"uvicorn main:app --host 0.0.0.0 --port $PORT"</span>
+    healthCheckPath: /health
+    envVars:
+      - key: BOT_TOKEN
+        sync: <span class="kw">false</span>          <span class="cm"># secret — fill in dashboard</span>
+      - key: SUPABASE_URL
+        sync: <span class="kw">false</span>
+      - key: SUPABASE_KEY
+        sync: <span class="kw">false</span>
+      - key: PYTHON_VERSION
+        value: <span class="str">"3.11.0"</span>
+    autoDeploy: <span class="kw">true</span>       <span class="cm"># redeploy on every push to main</span></div>
+    </div>
+
+    <div class="alert alert-tip">
+      <span class="alert-icon">💡</span>
+      <p><strong>Set <code>healthCheckPath</code></strong> in your <code>render.yaml</code>. Render will use this to determine if your deploy succeeded. Without it, Render considers a deploy successful as soon as the process starts — even if it crashes 2 seconds later.</p>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 6 ═══ -->
+  <section class="section" id="limits">
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <h2>Free Tier <span style="color:var(--blue)">Limits & Gotchas</span></h2>
+    </div>
+
+    <div class="compare">
+      <table>
+        <thead><tr><th>Resource</th><th>Free Limit</th><th>Tip</th></tr></thead>
+        <tbody>
+          <tr><td>Compute hours</td><td>750 hrs / month</td><td>One always-on service uses ~720 hrs/month. Don't run two free services simultaneously.</td></tr>
+          <tr><td>Spin-down</td><td>After 15 min idle</td><td>Use UptimeRobot or cron-job.org ping every 10 min. See Section 03.</td></tr>
+          <tr><td>RAM</td><td>512 MB</td><td>Enough for Python bots + FastAPI. Use <code>gunicorn --workers 1</code> to stay within limit.</td></tr>
+          <tr><td>Bandwidth</td><td>100 GB / month</td><td>More than enough for API + bot traffic.</td></tr>
+          <tr><td>Build time</td><td>500 min / month</td><td>Keep <code>requirements.txt</code> lean. Use <code>--no-cache-dir</code> for pip.</td></tr>
+          <tr><td>Custom domain</td><td>Free</td><td>Add in service settings → Custom Domains. Render provisions SSL automatically.</td></tr>
+          <tr><td>Persistent disk</td><td>Not available (free)</td><td>Use Supabase for DB, Supabase Storage for files. Don't write to local filesystem.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Alternatives if you hit limits</h3>
+    <div class="cards">
+      <div class="card"><div class="card-icon">🚂</div><h4>Railway</h4><p>$5/mo credit free. Better cold start, more RAM. Good upgrade from Render free.</p></div>
+      <div class="card"><div class="card-icon">🪰</div><h4>Fly.io</h4><p>Free allowance with more control. Docker-native. Good for always-on services with low traffic.</p></div>
+      <div class="card"><div class="card-icon">☁️</div><h4>Cloudflare Workers</h4><p>100k requests/day free. Edge runtime — zero cold start. Ideal for lightweight bots.</p></div>
+      <div class="card"><div class="card-icon">🐙</div><h4>GitHub Actions</h4><p>Run scheduled jobs (cron) for free — 2,000 min/month on private repos, unlimited on public.</p></div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <span>render-guide</span> · part of the Free Stack · <a href="index.html" style="color:var(--rd);text-decoration:none;">← back to index</a>
+</footer>
+</body>
+</html>

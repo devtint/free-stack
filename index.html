@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Free Stack</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --accent: #00ff88;
+    --accent2: #7c6aff;
+    --accent3: #ff6a6a;
+    --accent4: #ffc06a;
+    --accent5: #6af0ff;
+    --text: #e2e2f0;
+    --muted: #5a5a7a;
+    --card-bg: #13131d;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    padding: 2rem 1.5rem 4rem;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,106,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,106,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .glow-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(100px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.18;
+  }
+  .orb1 { width: 500px; height: 500px; background: var(--accent2); top: -150px; right: -100px; }
+  .orb2 { width: 400px; height: 400px; background: var(--accent); bottom: 0; left: -150px; }
+
+  .container {
+    max-width: 820px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    margin-bottom: 3rem;
+    animation: fadeUp 0.6s ease both;
+  }
+  .tag {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 0.25rem 0.75rem;
+    border-radius: 2px;
+    margin-bottom: 1.2rem;
+  }
+  h1 {
+    font-size: clamp(2.4rem, 7vw, 4rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin-bottom: 0.8rem;
+  }
+  h1 span { color: var(--accent); }
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-weight: 400;
+    max-width: 420px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* Section label */
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.9rem;
+    margin-top: 2.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Cards */
+  .grid {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem 1.4rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+    animation: fadeUp 0.5s ease both;
+  }
+  .card:hover {
+    border-color: var(--card-accent, var(--accent));
+    transform: translateY(-2px);
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--card-accent, var(--accent));
+    border-radius: 10px 0 0 10px;
+    opacity: 0.7;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    margin-bottom: 0.7rem;
+  }
+  .card-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+    background: color-mix(in srgb, var(--card-accent, var(--accent)) 12%, transparent);
+  }
+  .card-title {
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  .card-service {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--card-accent, var(--accent));
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-top: 1px;
+  }
+  .card-desc {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.55;
+    margin-bottom: 0.85rem;
+  }
+
+  /* Notes / tips */
+  .notes {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .notes li {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    color: #8888aa;
+    padding-left: 1.1rem;
+    position: relative;
+    line-height: 1.5;
+  }
+  .notes li::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--card-accent, var(--accent));
+    font-size: 0.9rem;
+  }
+
+  /* Pill badges */
+  .badge {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.58rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--card-accent, var(--accent)) 12%, transparent);
+    color: var(--card-accent, var(--accent));
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-right: 0.3rem;
+    margin-top: 0.4rem;
+    display: inline-block;
+  }
+
+  /* Full-width highlight card */
+  .card-highlight {
+    background: linear-gradient(135deg, #0f1a14 0%, #0f0f1a 100%);
+    border-color: color-mix(in srgb, var(--card-accent, var(--accent)) 30%, var(--border));
+  }
+
+  /* Architecture flow */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.8rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+  .flow-node {
+    background: var(--border);
+    border: 1px solid #2a2a3e;
+    padding: 0.3rem 0.7rem;
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 0.65rem;
+  }
+  .flow-arrow { color: var(--muted); font-size: 0.8rem; }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    margin-top: 3.5rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    animation: fadeUp 0.8s ease both;
+  }
+  footer span { color: var(--accent); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* stagger children */
+  .card:nth-child(1) { animation-delay: 0.05s; }
+  .card:nth-child(2) { animation-delay: 0.1s; }
+  .card:nth-child(3) { animation-delay: 0.15s; }
+  .card:nth-child(4) { animation-delay: 0.2s; }
+  .card:nth-child(5) { animation-delay: 0.25s; }
+  .card:nth-child(6) { animation-delay: 0.3s; }
+  .card:nth-child(7) { animation-delay: 0.35s; }
+</style>
+</head>
+<body>
+
+<div class="glow-orb orb1"></div>
+<div class="glow-orb orb2"></div>
+
+<div class="container">
+
+  <header>
+    <div class="tag">Zero Cost Architecture</div>
+    <h1>The <span>Free</span> Stack</h1>
+    <p class="subtitle">A production-ready setup using only free tiers — build, ship, and scale without spending a dollar.</p>
+  </header>
+
+  <!-- CORE INFRASTRUCTURE -->
+  <div class="section-label">Core Infrastructure</div>
+  <div class="grid grid-2">
+
+    <div class="card" style="--card-accent: #00ff88;">
+      <div class="card-header">
+        <div class="card-icon">▲</div>
+        <div>
+          <div class="card-title">Frontend</div>
+          <div class="card-service">Vercel</div>
+        </div>
+      </div>
+      <p class="card-desc">Deploy static sites, SPAs, and full-stack Next.js apps with zero config. Global CDN with instant cache invalidation.</p>
+      <ul class="notes">
+        <li>100 GB bandwidth / month free</li>
+        <li>Unlimited static deployments</li>
+        <li>Preview URLs for every git push</li>
+        <li>Serverless functions (limited — use Render for heavy logic)</li>
+        <li>Custom domain + free SSL/TLS</li>
+        <li>Analytics & Web Vitals dashboard included</li>
+      </ul>
+      <div>
+        <span class="badge">Next.js</span>
+        <span class="badge">React</span>
+        <span class="badge">Svelte</span>
+        <span class="badge">CDN</span>
+      </div>
+    </div>
+
+    <div class="card" style="--card-accent: #3ecf8e;">
+      <div class="card-header">
+        <div class="card-icon">🗄</div>
+        <div>
+          <div class="card-title">Database</div>
+          <div class="card-service">Supabase</div>
+        </div>
+      </div>
+      <p class="card-desc">Postgres database with built-in auth, realtime subscriptions, row-level security, and auto-generated REST & GraphQL APIs.</p>
+      <ul class="notes">
+        <li>500 MB database storage free</li>
+        <li>50,000 monthly active users (Auth)</li>
+        <li>1 GB file storage (Storage bucket)</li>
+        <li>Realtime listeners via WebSocket</li>
+        <li>Edge Functions (Deno) — 500k invocations/month</li>
+        <li>Projects pause after 1 week of inactivity — keep alive with a cron ping</li>
+      </ul>
+      <div>
+        <span class="badge">Postgres</span>
+        <span class="badge">Auth</span>
+        <span class="badge">Realtime</span>
+        <span class="badge">Storage</span>
+      </div>
+    </div>
+
+    <div class="card" style="--card-accent: #7c6aff;">
+      <div class="card-header">
+        <div class="card-icon">⚙</div>
+        <div>
+          <div class="card-title">Backend / API</div>
+          <div class="card-service">Render</div>
+        </div>
+      </div>
+      <p class="card-desc">Deploy Node, Python, Go, or any Dockerised app. Free tier spins down after 15 min of inactivity — keep alive with a health-check cron.</p>
+      <ul class="notes">
+        <li>750 hrs / month free (enough for 1 always-on service)</li>
+        <li>Set up a cron job → ping <code style="color:#b0a0ff">GET /health</code> every 5 min</li>
+        <li>Use <strong>cron-job.org</strong> or <strong>UptimeRobot</strong> for the ping — both free</li>
+        <li>Supports background workers & scheduled jobs</li>
+        <li>Auto-deploy from GitHub on push</li>
+        <li>Free TLS + custom domain</li>
+      </ul>
+      <div>
+        <span class="badge">Node.js</span>
+        <span class="badge">Python</span>
+        <span class="badge">Docker</span>
+        <span class="badge">REST</span>
+      </div>
+    </div>
+
+    <div class="card" style="--card-accent: #29b6f6;">
+      <div class="card-header">
+        <div class="card-icon">✈</div>
+        <div>
+          <div class="card-title">Telegram Bot</div>
+          <div class="card-service">Bot API (free)</div>
+        </div>
+      </div>
+      <p class="card-desc">Host your bot logic on Render. Use webhooks (not polling) for zero idle CPU — Telegram pushes updates directly to your endpoint.</p>
+      <ul class="notes">
+        <li>Register bot free via <strong>@BotFather</strong></li>
+        <li>Set webhook to your Render HTTPS URL</li>
+        <li>Webhook mode = no polling = no wasted compute</li>
+        <li>Use <strong>grammY</strong> or <strong>python-telegram-bot</strong> library</li>
+        <li>Store state / user data in Supabase</li>
+        <li>Schedule broadcast jobs with Render Cron</li>
+      </ul>
+      <div>
+        <span class="badge">Webhook</span>
+        <span class="badge">grammY</span>
+        <span class="badge">Bot API</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SOURCE CONTROL & CI/CD -->
+  <div class="section-label">Source Control & CI/CD</div>
+  <div class="grid">
+
+    <div class="card card-highlight" style="--card-accent: #f0f6fc;">
+      <div class="card-header">
+        <div class="card-icon">🐙</div>
+        <div>
+          <div class="card-title">Source Control & Automation</div>
+          <div class="card-service">GitHub</div>
+        </div>
+      </div>
+      <p class="card-desc">The central hub. Every service connects to GitHub for auto-deploys. Use Actions for free CI/CD pipelines — tests, linting, build checks, and more.</p>
+      <ul class="notes">
+        <li>Unlimited public & private repos free</li>
+        <li>GitHub Actions — 2,000 min/month free (private repos)</li>
+        <li>GitHub Pages — free static hosting for docs/landing pages</li>
+        <li>Dependabot security alerts & auto PRs at no cost</li>
+        <li>Branch protection rules + required PR reviews (free for public)</li>
+        <li>GitHub Secrets — safely store API keys for Actions workflows</li>
+        <li>GitHub Projects — free Kanban/issue tracker for the team</li>
+      </ul>
+      <div>
+        <span class="badge">Actions CI/CD</span>
+        <span class="badge">Pages</span>
+        <span class="badge">Secrets</span>
+        <span class="badge">Dependabot</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- KEEP-ALIVE & MONITORING -->
+  <div class="section-label">Keep-Alive & Monitoring</div>
+  <div class="grid grid-2">
+
+    <div class="card" style="--card-accent: #ff6a6a;">
+      <div class="card-header">
+        <div class="card-icon">💓</div>
+        <div>
+          <div class="card-title">Uptime Monitor</div>
+          <div class="card-service">UptimeRobot</div>
+        </div>
+      </div>
+      <p class="card-desc">Pings your Render backend every 5 minutes to prevent spin-down. Sends alerts if your service goes down.</p>
+      <ul class="notes">
+        <li>50 monitors free</li>
+        <li>5-minute check interval on free plan</li>
+        <li>Email / Telegram alerts on downtime</li>
+        <li>Public status page included free</li>
+      </ul>
+      <div>
+        <span class="badge">Ping</span>
+        <span class="badge">Alerts</span>
+        <span class="badge">Status Page</span>
+      </div>
+    </div>
+
+    <div class="card" style="--card-accent: #ffc06a;">
+      <div class="card-header">
+        <div class="card-icon">⏰</div>
+        <div>
+          <div class="card-title">Cron Scheduler</div>
+          <div class="card-service">cron-job.org</div>
+        </div>
+      </div>
+      <p class="card-desc">Free hosted cron jobs — use as an alternative or supplement to UptimeRobot for scheduled HTTP calls.</p>
+      <ul class="notes">
+        <li>Unlimited cron jobs free</li>
+        <li>Run as often as every minute</li>
+        <li>Execution logs & failure notifications</li>
+        <li>HTTPS + custom headers + POST body support</li>
+      </ul>
+      <div>
+        <span class="badge">Scheduler</span>
+        <span class="badge">HTTP calls</span>
+        <span class="badge">Logs</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- EXTRAS -->
+  <div class="section-label">Extras & Power-Ups</div>
+  <div class="grid grid-2">
+
+    <div class="card" style="--card-accent: #ff9f6a;">
+      <div class="card-header">
+        <div class="card-icon">📧</div>
+        <div>
+          <div class="card-title">Transactional Email</div>
+          <div class="card-service">Resend</div>
+        </div>
+      </div>
+      <p class="card-desc">Modern email API built for developers. Send password resets, notifications, and newsletters.</p>
+      <ul class="notes">
+        <li>3,000 emails / month free</li>
+        <li>1 custom domain on free plan</li>
+        <li>React Email for templates</li>
+        <li>DKIM/SPF managed automatically</li>
+      </ul>
+      <div><span class="badge">SMTP</span><span class="badge">API</span></div>
+    </div>
+
+    <div class="card" style="--card-accent: #c06aff;">
+      <div class="card-header">
+        <div class="card-icon">🔐</div>
+        <div>
+          <div class="card-title">Auth (alternative)</div>
+          <div class="card-service">Clerk</div>
+        </div>
+      </div>
+      <p class="card-desc">Drop-in auth with pre-built UI. Use instead of Supabase Auth if you need social logins, MFA, or org support out of the box.</p>
+      <ul class="notes">
+        <li>10,000 MAU free</li>
+        <li>Social OAuth, magic link, passkeys</li>
+        <li>User management dashboard</li>
+        <li>Webhooks for user events</li>
+      </ul>
+      <div><span class="badge">OAuth</span><span class="badge">MFA</span><span class="badge">JWT</span></div>
+    </div>
+
+    <div class="card" style="--card-accent: #6affb0;">
+      <div class="card-header">
+        <div class="card-icon">🌍</div>
+        <div>
+          <div class="card-title">DNS & Domain Proxy</div>
+          <div class="card-service">Cloudflare</div>
+        </div>
+      </div>
+      <p class="card-desc">Free DNS, DDoS protection, WAF, and global CDN. Point your domain here and sit behind Cloudflare's network at zero cost.</p>
+      <ul class="notes">
+        <li>Unlimited DNS queries free</li>
+        <li>Free SSL/TLS (edge certificates)</li>
+        <li>Cloudflare Workers — 100k requests/day free</li>
+        <li>R2 Storage — 10 GB free (no egress fees)</li>
+        <li>Turnstile — free CAPTCHA alternative</li>
+      </ul>
+      <div><span class="badge">DNS</span><span class="badge">CDN</span><span class="badge">Workers</span><span class="badge">R2</span></div>
+    </div>
+
+    <div class="card" style="--card-accent: #6adeff;">
+      <div class="card-header">
+        <div class="card-icon">📊</div>
+        <div>
+          <div class="card-title">Analytics</div>
+          <div class="card-service">Plausible / Umami</div>
+        </div>
+      </div>
+      <p class="card-desc">Privacy-first, cookie-free analytics. Self-host Umami on Render + Supabase for completely free page tracking.</p>
+      <ul class="notes">
+        <li>Umami: self-hosted, MIT license, free forever</li>
+        <li>Deploy on Render + Supabase Postgres</li>
+        <li>No cookie banner needed (GDPR-friendly)</li>
+        <li>Plausible: free 30-day trial then paid (or self-host)</li>
+      </ul>
+      <div><span class="badge">Privacy</span><span class="badge">Self-hosted</span><span class="badge">GDPR</span></div>
+    </div>
+
+    <div class="card" style="--card-accent: #ffd96a;">
+      <div class="card-header">
+        <div class="card-icon">🔔</div>
+        <div>
+          <div class="card-title">Push Notifications</div>
+          <div class="card-service">OneSignal</div>
+        </div>
+      </div>
+      <p class="card-desc">Web push, in-app messages, and email — all from one free plan. Integrate in minutes.</p>
+      <ul class="notes">
+        <li>10,000 subscribers free</li>
+        <li>Unlimited push notifications</li>
+        <li>REST API + SDKs for all platforms</li>
+        <li>Segmentation & A/B testing included</li>
+      </ul>
+      <div><span class="badge">Web Push</span><span class="badge">In-App</span></div>
+    </div>
+
+    <div class="card" style="--card-accent: #ff6a9f;">
+      <div class="card-header">
+        <div class="card-icon">🗺</div>
+        <div>
+          <div class="card-title">Error Tracking</div>
+          <div class="card-service">Sentry</div>
+        </div>
+      </div>
+      <p class="card-desc">Catch bugs before users report them. Full stack error monitoring with source maps, performance tracing, and alerts.</p>
+      <ul class="notes">
+        <li>5,000 errors / month free</li>
+        <li>Works on frontend (Vercel) + backend (Render)</li>
+        <li>Session replay — 50 replays/month free</li>
+        <li>Slack / email alerts on new issues</li>
+      </ul>
+      <div><span class="badge">Errors</span><span class="badge">Tracing</span><span class="badge">Replay</span></div>
+    </div>
+
+  </div>
+
+  <!-- Architecture Flow -->
+  <div class="section-label">Data Flow</div>
+  <div class="card" style="--card-accent: #7c6aff;">
+    <p class="card-desc" style="margin-bottom:0.6rem">How everything connects in a typical request lifecycle.</p>
+    <div class="flow">
+      <span class="flow-node">User Browser</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-node">Cloudflare DNS</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-node">Vercel (Frontend)</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-node">Render (API)</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-node">Supabase (DB)</span>
+    </div>
+    <div class="flow" style="margin-top:0.5rem">
+      <span class="flow-node">Telegram User</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-node">Bot API Webhook</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-node">Render (Bot Logic)</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-node">Supabase (DB)</span>
+    </div>
+    <div class="flow" style="margin-top:0.5rem">
+      <span class="flow-node">UptimeRobot / cron-job.org</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-node">Render /health</span>
+      <span class="flow-arrow">⟳ every 5 min</span>
+    </div>
+  </div>
+
+  <footer>
+    Built with <span>$0/month</span> · Everything above is on a free tier · Scale when you're ready
+  </footer>
+
+</div>
+</body>
+</html>

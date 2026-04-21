@@ -30,6 +30,7 @@ A single-page HTML reference covering the best free-tier services for indie hack
 - **`cloudflare-guide.html`** — DNS, Workers, R2 storage, proxy setup on Cloudflare
 - **`github-guide.html`** — Repos, Actions CI/CD, Secrets, Pages, branch protection
 - **`keepalive-guide.html`** — UptimeRobot, cron-job.org, Supabase anti-pause strategies
+- **`git-guide.html`** — Git CLI: setup, workflow, branching, undo, history, .gitignore (with real examples)
 
 ## Made With This Stack
 

@@ -22,8 +22,11 @@ A single-page HTML reference covering the best free-tier services for indie hack
 - **OneSignal** — Push notifications
 - **Umami** — Self-hosted analytics
 
-### Telegram Bot Guide (`telegram-bot-guide.html`)
-Step-by-step guide for building and deploying Telegram bots on the free stack.
+### Reference Guides
+- **`index.html`** — Main free stack reference card
+- **`telegram-bot-guide.html`** — Build & deploy Telegram bots on Render
+- **`supabase-guide.html`** — Database, Auth, Storage, Realtime on Supabase
+- **`vercel-guide.html`** — Deploy, Env Vars, Serverless Functions, Domains on Vercel
 
 ## Made With This Stack
 
@@ -35,12 +38,6 @@ Real bots built and deployed using these exact free-tier services:
 | TikTok Downloader | [@tiktokvideodownload\_robot](https://t.me/tiktokvideodownload_robot) | Render | [GitHub](https://github.com/devtint/TelegramtiktokDownloader) |
 
 **Author:** [@BadCodeWriter](https://t.me/BadCodeWriter) · [github.com/devtint](https://github.com/devtint)
-
-## Deploy in 30 seconds
-1. Fork this repo
-2. Go to **Settings → Pages**
-3. Set source to `main` branch, `/ (root)`
-4. Visit `https://your-username.github.io/free-stack`
 
 ## License
 MIT

@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vercel — Complete Dev Guide</title>
+<meta name="description" content="Complete Vercel guide: deployments, environment variables, serverless functions, domains, and CI/CD on the free tier.">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #0e1117;
+    --surface2: #161b24;
+    --border: #1e2736;
+    --vc: #00ff88;
+    --vc-dim: #00cc6a;
+    --green: #3de687;
+    --yellow: #f5c842;
+    --red: #ff5f6d;
+    --purple: #c084fc;
+    --orange: #fb923c;
+    --blue: #60a5fa;
+    --text: #cdd6f4;
+    --muted: #6c7a96;
+    --dim: #3a4560;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,12,16,0.9);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+
+  .nav-brand {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--vc);
+    letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+
+  .nav-brand span { color: var(--muted); }
+
+  .nav-links {
+    display: flex;
+    gap: 1.5rem;
+    list-style: none;
+  }
+
+  .nav-links a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    transition: color 0.2s;
+  }
+
+  .nav-links a:hover { color: var(--vc); }
+
+  .back-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.2s;
+  }
+  .back-btn:hover { color: var(--vc); }
+
+  /* HERO */
+  .hero {
+    position: relative;
+    padding: 7rem 2rem 5rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--vc);
+    background: rgba(0,255,136,0.08);
+    border: 1px solid rgba(0,255,136,0.2);
+    padding: 4px 12px;
+    border-radius: 100px;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.05em;
+  }
+
+  .hero-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--vc);
+    border-radius: 50%;
+    animation: blink 2s infinite;
+  }
+
+  @keyframes blink {
+    0%,100% { opacity: 1; } 50% { opacity: 0.2; }
+  }
+
+  h1 {
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+  }
+
+  h1 .accent { color: var(--vc); }
+  h1 .dim { color: var(--muted); }
+
+  .hero-sub {
+    font-size: 1.1rem;
+    color: var(--muted);
+    max-width: 560px;
+    margin-bottom: 3rem;
+    font-weight: 400;
+  }
+
+  .toc {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin-top: 1rem;
+  }
+
+  .toc-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    text-decoration: none;
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .toc-item::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 3px 0 0 3px;
+  }
+
+  .toc-item:nth-child(1)::before { background: var(--vc); }
+  .toc-item:nth-child(2)::before { background: var(--blue); }
+  .toc-item:nth-child(3)::before { background: var(--yellow); }
+  .toc-item:nth-child(4)::before { background: var(--purple); }
+  .toc-item:nth-child(5)::before { background: var(--orange); }
+  .toc-item:nth-child(6)::before { background: var(--red); }
+
+  .toc-item:hover {
+    border-color: var(--vc);
+    background: var(--surface2);
+    transform: translateY(-2px);
+  }
+
+  .toc-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+
+  /* MAIN LAYOUT */
+  .main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 2rem 6rem;
+  }
+
+  .section {
+    margin-bottom: 5rem;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .section-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.2rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1.2rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 6px;
+    margin-top: 6px;
+    white-space: nowrap;
+  }
+
+  h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; line-height: 1.2; }
+
+  h3 { font-size: 1.1rem; font-weight: 600; margin: 2rem 0 0.8rem; color: var(--text); }
+
+  p { color: var(--muted); margin-bottom: 1rem; font-size: 0.95rem; }
+  strong { color: var(--text); }
+
+  /* STEPS */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 1.5rem 0;
+  }
+
+  .step {
+    background: var(--surface);
+    padding: 1.2rem 1.5rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    transition: background 0.2s;
+  }
+
+  .step:hover { background: var(--surface2); }
+
+  .step-num {
+    min-width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-top: 2px;
+    background: rgba(0,255,136,0.1);
+    color: var(--vc);
+  }
+
+  .step-content h4 { font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .step-content p { margin: 0; font-size: 0.85rem; }
+
+  /* CODE BLOCKS */
+  .code-block {
+    background: #080b10;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 1.5rem 0;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-label { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.06em; display: flex; align-items: center; gap: 8px; }
+
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #ff5f6d; }
+  .dot-y { background: #f5c842; }
+  .dot-g { background: #3de687; }
+
+  .code-body {
+    padding: 1.2rem 1.5rem;
+    font-size: 0.82rem;
+    line-height: 1.8;
+    overflow-x: auto;
+    color: #abb2bf;
+  }
+
+  .code-body .kw { color: #c678dd; }
+  .code-body .fn { color: #61afef; }
+  .code-body .str { color: #98c379; }
+  .code-body .cm { color: #5c6370; font-style: italic; }
+  .code-body .var { color: #e06c75; }
+  .code-body .num { color: #d19a66; }
+  .code-body .op { color: #56b6c2; }
+  .code-body .ty { color: #e5c07b; }
+
+  /* INFO CARDS */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.3rem;
+    transition: all 0.2s;
+  }
+
+  .card:hover { border-color: var(--dim); transform: translateY(-2px); }
+  .card-icon { font-size: 1.5rem; margin-bottom: 0.7rem; }
+  .card h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text); }
+  .card p { font-size: 0.82rem; margin: 0; }
+
+  /* TABLE */
+  .compare { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 1.5rem 0; }
+  .compare table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .compare th {
+    background: var(--surface);
+    padding: 12px 16px;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--border);
+  }
+  .compare td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--muted); vertical-align: top; }
+  .compare tr:last-child td { border-bottom: none; }
+  .compare tr:hover td { background: var(--surface2); }
+  .compare td:first-child { color: var(--text); font-weight: 600; }
+
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; font-weight: 600; }
+  .tag-green { background: rgba(61,230,135,0.12); color: var(--green); }
+  .tag-yellow { background: rgba(245,200,66,0.12); color: var(--yellow); }
+  .tag-red { background: rgba(255,95,109,0.12); color: var(--red); }
+  .tag-vc { background: rgba(0,255,136,0.1); color: var(--vc); }
+
+  /* ALERTS */
+  .alert { display: flex; gap: 12px; padding: 1rem 1.2rem; border-radius: 10px; margin: 1.2rem 0; font-size: 0.85rem; }
+  .alert-icon { font-size: 1rem; margin-top: 1px; flex-shrink: 0; }
+  .alert p { margin: 0; }
+  .alert-warn { background: rgba(245,200,66,0.06); border: 1px solid rgba(245,200,66,0.2); }
+  .alert-warn p { color: #d4a820; }
+  .alert-tip { background: rgba(61,230,135,0.06); border: 1px solid rgba(61,230,135,0.2); }
+  .alert-tip p { color: #2fb866; }
+  .alert-danger { background: rgba(255,95,109,0.06); border: 1px solid rgba(255,95,109,0.2); }
+  .alert-danger p { color: #e04455; }
+  .alert-info { background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.15); }
+  .alert-info p { color: var(--vc-dim); }
+
+  /* INLINE CODE */
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82em;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--vc);
+  }
+
+  /* TIMELINE */
+  .timeline { position: relative; padding-left: 2rem; margin: 1.5rem 0; }
+  .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 1px; background: var(--border); }
+  .tl-item { position: relative; margin-bottom: 1.5rem; }
+  .tl-item::before { content: ''; position: absolute; left: -1.6rem; top: 6px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--bg); }
+  .tl-item:nth-child(1)::before { background: var(--vc); }
+  .tl-item:nth-child(2)::before { background: var(--blue); }
+  .tl-item:nth-child(3)::before { background: var(--yellow); }
+  .tl-item:nth-child(4)::before { background: var(--purple); }
+  .tl-item:nth-child(5)::before { background: var(--orange); }
+  .tl-item:nth-child(6)::before { background: var(--red); }
+  .tl-title { font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .tl-desc { font-size: 0.83rem; color: var(--muted); }
+
+  /* ENV TABLE */
+  .env-table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; margin: 1.2rem 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .env-table th { background: var(--surface); padding: 10px 14px; text-align: left; font-size: 0.68rem; letter-spacing: 0.06em; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .env-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .env-table tr:last-child td { border-bottom: none; }
+  .env-table td:first-child { color: var(--vc); }
+  .env-table td:nth-child(2) { color: var(--green); }
+  .env-table td:nth-child(3) { color: var(--muted); }
+
+  /* FOOTER */
+  footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--muted); }
+  footer span { color: var(--vc); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  @media (max-width: 640px) {
+    nav { padding: 0 1rem; }
+    .nav-links { display: none; }
+    .hero { padding: 4rem 1rem 3rem; }
+    .main { padding: 0 1rem 4rem; }
+    h1 { font-size: 2.2rem; }
+    .compare { overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-brand">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 19.7h20L12 2z"/></svg>
+    vercel-guide <span>/ complete-reference</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#deploy">01 Deploy</a></li>
+    <li><a href="#envvars">02 Env Vars</a></li>
+    <li><a href="#functions">03 Functions</a></li>
+    <li><a href="#domains">04 Domains</a></li>
+    <li><a href="#cicd">05 CI/CD</a></li>
+    <li><a href="#limits">06 Limits</a></li>
+  </ul>
+  <a href="index.html" class="back-btn">← Free Stack</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">Complete Developer Reference</div>
+  <h1>Deploy with<br><span class="accent">Vercel</span><br><span class="dim">the right way.</span></h1>
+  <p class="hero-sub">From git push to production — deployments, environment variables, serverless functions, custom domains, and CI/CD. All on the free Hobby plan. All in one page.</p>
+  <nav class="toc" aria-label="Table of contents">
+    <a href="#deploy" class="toc-item"><span class="toc-num">01</span> First Deployment</a>
+    <a href="#envvars" class="toc-item"><span class="toc-num">02</span> Env Variables</a>
+    <a href="#functions" class="toc-item"><span class="toc-num">03</span> Serverless Fns</a>
+    <a href="#domains" class="toc-item"><span class="toc-num">04</span> Custom Domains</a>
+    <a href="#cicd" class="toc-item"><span class="toc-num">05</span> CI/CD & Previews</a>
+    <a href="#limits" class="toc-item"><span class="toc-num">06</span> Free Tier Limits</a>
+  </nav>
+</section>
+
+<main class="main">
+
+  <!-- ═══ SECTION 1 ═══ -->
+  <section class="section" id="deploy">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2>First <span style="color:var(--vc)">Deployment</span></h2>
+    </div>
+
+    <p>Vercel is the fastest way to go from code to live URL. It supports <strong>Next.js</strong>, <strong>React</strong>, <strong>Vue</strong>, <strong>Svelte</strong>, <strong>Astro</strong>, vanilla HTML, and more — zero config needed for most frameworks.</p>
+
+    <h3>Deploy from GitHub — the standard way</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Push your code to GitHub</h4>
+          <p>Your project needs to be in a GitHub (or GitLab/Bitbucket) repository. Make sure you have an <code>index.html</code>, <code>package.json</code>, or a framework entry point.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Go to vercel.com → Add New Project</h4>
+          <p>Sign in with GitHub. Click <strong>Add New</strong> → <strong>Project</strong>. Import your repository from the list.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Vercel auto-detects your framework</h4>
+          <p>It reads your <code>package.json</code> and sets the correct Build Command and Output Directory. For Next.js it's automatic — nothing to change.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4>Add environment variables (if needed)</h4>
+          <p>Expand the <strong>Environment Variables</strong> section before deploying. You can also add them later in Project Settings.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <h4>Click Deploy</h4>
+          <p>Vercel builds and deploys in ~30–90 seconds. You get a live URL like <code>your-project.vercel.app</code> immediately.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>Deploy via CLI (faster for iteration)</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+        <span class="code-label">terminal</span>
+      </div>
+      <div class="code-body"><span class="cm"># Install CLI globally</span>
+npm install -g vercel
+
+<span class="cm"># Login</span>
+vercel login
+
+<span class="cm"># Deploy from project folder</span>
+vercel
+
+<span class="cm"># Deploy to production (skips preview)</span>
+vercel --prod
+
+<span class="cm"># Pull env vars from Vercel to local .env</span>
+vercel env pull .env.local</div>
+    </div>
+
+    <h3>Framework presets</h3>
+    <div class="compare">
+      <table>
+        <thead>
+          <tr><th>Framework</th><th>Build Command</th><th>Output Dir</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Next.js</td><td><code>next build</code></td><td><code>.next</code> (auto)</td></tr>
+          <tr><td>Vite (React)</td><td><code>vite build</code></td><td><code>dist</code></td></tr>
+          <tr><td>Create React App</td><td><code>react-scripts build</code></td><td><code>build</code></td></tr>
+          <tr><td>Astro</td><td><code>astro build</code></td><td><code>dist</code></td></tr>
+          <tr><td>SvelteKit</td><td><code>vite build</code></td><td><code>.svelte-kit</code> (auto)</td></tr>
+          <tr><td>Static HTML</td><td>(none)</td><td><code>./</code> or <code>public</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 2 ═══ -->
+  <section class="section" id="envvars">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2>Environment <span style="color:var(--blue)">Variables</span></h2>
+    </div>
+
+    <p>Never hardcode secrets. Vercel encrypts and injects environment variables at build time and runtime. They're available in serverless functions via <code>process.env</code>.</p>
+
+    <h3>Adding variables</h3>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-title">Project Settings → Environment Variables</div>
+        <div class="tl-desc">Go to your project on vercel.com → Settings → Environment Variables. Add key-value pairs for each environment (Production, Preview, Development).</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-title">Choose environment scope</div>
+        <div class="tl-desc"><strong>Production</strong> = main branch deploys only. <strong>Preview</strong> = all PR/branch deploys. <strong>Development</strong> = pulled locally via <code>vercel env pull</code>.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-title">Mark secrets as sensitive</div>
+        <div class="tl-desc">Toggle the lock icon to encrypt the value — it won't be readable again after saving. Use this for API keys and tokens.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-title">Redeploy to apply changes</div>
+        <div class="tl-desc">Env var changes don't auto-redeploy. Go to the Deployments tab → ··· → Redeploy on the latest deployment.</div>
+      </div>
+    </div>
+
+    <div class="alert alert-warn">
+      <span class="alert-icon">⚠️</span>
+      <p><strong>Next.js prefix rule:</strong> Only variables prefixed with <code>NEXT_PUBLIC_</code> are exposed to the browser. All others are server-only (serverless functions). Use this to your advantage — never expose private keys to the client.</p>
+    </div>
+
+    <h3>Variable naming</h3>
+    <table class="env-table">
+      <thead>
+        <tr><th>Variable</th><th>Access</th><th>Example use</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>NEXT_PUBLIC_*</td><td>Browser + Server</td><td>Supabase URL, public API keys</td></tr>
+        <tr><td>DATABASE_URL</td><td>Server only</td><td>Postgres connection string</td></tr>
+        <tr><td>API_SECRET_KEY</td><td>Server only</td><td>Stripe secret, Resend key</td></tr>
+        <tr><td>NODE_ENV</td><td>Auto-set</td><td><code>production</code> on Vercel deploys</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Pull env vars locally</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+        <span class="code-label">terminal</span>
+      </div>
+      <div class="code-body"><span class="cm"># Pulls all "Development" env vars into .env.local</span>
+vercel env pull .env.local
+
+<span class="cm"># .env.local is git-ignored by default in Next.js — never commit it</span></div>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 3 ═══ -->
+  <section class="section" id="functions">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2>Serverless <span style="color:var(--yellow)">Functions</span></h2>
+    </div>
+
+    <p>Any file in <code>app/api/</code> (App Router) or <code>pages/api/</code> (Pages Router) becomes a serverless function. No server to manage — Vercel spins up containers on demand.</p>
+
+    <div class="alert alert-warn">
+      <span class="alert-icon">⚠️</span>
+      <p><strong>Free tier limits:</strong> 100 GB-hours compute / month, <strong>10 second</strong> max execution time per function on Hobby. For longer jobs (scraping, PDF generation), use Render instead.</p>
+    </div>
+
+    <h3>API route — App Router (Next.js 14+)</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+        <span class="code-label">app/api/hello/route.ts</span>
+      </div>
+      <div class="code-body"><span class="kw">import</span> { <span class="ty">NextRequest</span>, <span class="ty">NextResponse</span> } <span class="kw">from</span> <span class="str">'next/server'</span>
+
+<span class="kw">export async function</span> <span class="fn">GET</span>(req: <span class="ty">NextRequest</span>) {
+  <span class="kw">return</span> <span class="ty">NextResponse</span>.<span class="fn">json</span>({ message: <span class="str">'Hello from Vercel!'</span> })
+}
+
+<span class="kw">export async function</span> <span class="fn">POST</span>(req: <span class="ty">NextRequest</span>) {
+  <span class="kw">const</span> body = <span class="kw">await</span> req.<span class="fn">json</span>()
+  <span class="cm">// process body.email, body.name etc.</span>
+  <span class="kw">return</span> <span class="ty">NextResponse</span>.<span class="fn">json</span>({ ok: <span class="kw">true</span> }, { status: <span class="num">201</span> })
+}</div>
+    </div>
+
+    <h3>Edge Runtime (even faster, more limits)</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+        <span class="code-label">app/api/edge-example/route.ts</span>
+      </div>
+      <div class="code-body"><span class="kw">export const</span> runtime = <span class="str">'edge'</span>  <span class="cm">// runs in Vercel Edge Network globally</span>
+
+<span class="kw">export async function</span> <span class="fn">GET</span>() {
+  <span class="kw">return new</span> <span class="ty">Response</span>(<span class="str">'Ultra-fast edge response'</span>, {
+    headers: { <span class="str">'content-type'</span>: <span class="str">'text/plain'</span> }
+  })
+}</div>
+    </div>
+
+    <h3>Runtime comparison</h3>
+    <div class="compare">
+      <table>
+        <thead>
+          <tr><th>Runtime</th><th>Max Duration</th><th>Cold Start</th><th>Best For</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Node.js (serverless)</td>
+            <td>10s (Hobby) / 300s (Pro)</td>
+            <td>~200ms</td>
+            <td>DB queries, Supabase, Stripe</td>
+          </tr>
+          <tr>
+            <td>Edge</td>
+            <td>30s</td>
+            <td>~5ms</td>
+            <td>Auth, geo-routing, rewrites</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 4 ═══ -->
+  <section class="section" id="domains">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <h2>Custom <span style="color:var(--purple)">Domains</span></h2>
+    </div>
+
+    <p>Connect your own domain for free. Vercel handles SSL certificate issuance and renewal automatically. No manual cert configuration needed.</p>
+
+    <h3>Connect a domain</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Project Settings → Domains → Add</h4>
+          <p>Type your domain (e.g. <code>myapp.com</code> or <code>www.myapp.com</code>). Vercel shows you the DNS records to add.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Add DNS records at your registrar</h4>
+          <p>For Cloudflare DNS: Add an <code>A</code> record pointing to Vercel's IP <code>76.76.21.21</code>, or a <code>CNAME</code> pointing to <code>cname.vercel-dns.com</code>.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Wait for propagation</h4>
+          <p>Usually 1–5 minutes with Cloudflare. Vercel checks DNS automatically and issues TLS once verified.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert alert-info">
+      <span class="alert-icon">💡</span>
+      <p><strong>Cloudflare + Vercel tip:</strong> Set Cloudflare proxy status to <strong>DNS only</strong> (grey cloud) on the A/CNAME record pointing to Vercel. If you use Cloudflare's proxy (orange cloud), set SSL mode to <strong>Full</strong> to avoid redirect loops.</p>
+    </div>
+
+    <h3>DNS records reference</h3>
+    <div class="compare">
+      <table>
+        <thead>
+          <tr><th>Record Type</th><th>Name</th><th>Value</th><th>Use For</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>A</td><td>@</td><td><code>76.76.21.21</code></td><td>Root domain (myapp.com)</td></tr>
+          <tr><td>CNAME</td><td>www</td><td><code>cname.vercel-dns.com</code></td><td>www subdomain</td></tr>
+          <tr><td>CNAME</td><td>api</td><td><code>cname.vercel-dns.com</code></td><td>api.myapp.com</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 5 ═══ -->
+  <section class="section" id="cicd">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <h2>CI/CD & <span style="color:var(--orange)">Preview Deployments</span></h2>
+    </div>
+
+    <p>Every git push triggers a deployment automatically. Vercel creates <strong>preview URLs</strong> for every branch and PR — your team can review live changes before merging to main.</p>
+
+    <h3>How it works</h3>
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">🌿</div>
+        <h4>Push to main → Production</h4>
+        <p>Any push to your production branch (usually <code>main</code>) deploys to your live domain instantly.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔍</div>
+        <h4>Push to any branch → Preview</h4>
+        <p>Feature branches get a unique preview URL like <code>your-project-git-feature-abc.vercel.app</code>. Share it with teammates or clients.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">💬</div>
+        <h4>PR Comments</h4>
+        <p>Vercel posts the preview URL as a comment on your GitHub PR automatically. One-click review.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">↩️</div>
+        <h4>Instant Rollback</h4>
+        <p>Go to Deployments → click any previous deployment → Promote to Production. Zero-downtime rollback in seconds.</p>
+      </div>
+    </div>
+
+    <h3>Custom build pipeline (vercel.json)</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div style="display:flex;gap:6px"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+        <span class="code-label">vercel.json</span>
+      </div>
+      <div class="code-body">{
+  <span class="str">"buildCommand"</span>: <span class="str">"npm run build"</span>,
+  <span class="str">"outputDirectory"</span>: <span class="str">"dist"</span>,
+  <span class="str">"installCommand"</span>: <span class="str">"npm ci"</span>,
+  <span class="str">"rewrites"</span>: [
+    {
+      <span class="str">"source"</span>: <span class="str">"/api/(.*)"</span>,
+      <span class="str">"destination"</span>: <span class="str">"https://my-api.onrender.com/api/$1"</span>
+    }
+  ],
+  <span class="str">"headers"</span>: [
+    {
+      <span class="str">"source"</span>: <span class="str">"/api/(.*)"</span>,
+      <span class="str">"headers"</span>: [
+        { <span class="str">"key"</span>: <span class="str">"Access-Control-Allow-Origin"</span>, <span class="str">"value"</span>: <span class="str">"*"</span> }
+      ]
+    }
+  ]
+}</div>
+    </div>
+
+    <div class="alert alert-tip">
+      <span class="alert-icon">💡</span>
+      <p><strong>Proxy your Render backend through Vercel rewrites</strong> to avoid CORS issues. Requests to <code>/api/*</code> on your Vercel domain get forwarded to Render — the browser never sees a cross-origin request.</p>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION 6 ═══ -->
+  <section class="section" id="limits">
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <h2>Free Tier <span style="color:var(--red)">Limits & Gotchas</span></h2>
+    </div>
+
+    <p>The Vercel Hobby plan is surprisingly generous for personal projects. Here's exactly what you get and what to watch out for:</p>
+
+    <div class="compare">
+      <table>
+        <thead>
+          <tr><th>Resource</th><th>Hobby (Free)</th><th>Tips</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Bandwidth</td>
+            <td>100 GB / month</td>
+            <td>More than enough for most apps. Monitor in the Usage dashboard.</td>
+          </tr>
+          <tr>
+            <td>Serverless Invocations</td>
+            <td>Unlimited</td>
+            <td>Functions are pay-per-use, free tier has generous compute hours.</td>
+          </tr>
+          <tr>
+            <td>Function Duration</td>
+            <td>10 sec max</td>
+            <td>Long-running tasks → use Render. Or split into smaller functions.</td>
+          </tr>
+          <tr>
+            <td>Build Time</td>
+            <td>6,000 min / month</td>
+            <td>Each deploy uses ~1–3 min. 6,000 min = ~3,000 deploys/month.</td>
+          </tr>
+          <tr>
+            <td>Edge Middleware</td>
+            <td>1 MB size limit</td>
+            <td>Keep middleware lean — no heavy Node.js modules allowed.</td>
+          </tr>
+          <tr>
+            <td>Deployments</td>
+            <td>Unlimited</td>
+            <td>Every push to any branch creates a deployment.</td>
+          </tr>
+          <tr>
+            <td>Custom Domains</td>
+            <td>Unlimited</td>
+            <td>All with free SSL. No hard limit.</td>
+          </tr>
+          <tr>
+            <td>Team Size</td>
+            <td>1 person (Hobby)</td>
+            <td>Hobby plan is personal only. Collaborators need the Pro plan ($20/mo).</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Common gotchas</h3>
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">⏱️</div>
+        <h4>10-second timeout</h4>
+        <p>Anything that takes longer (image processing, large DB queries) will return a 504. Move heavy work to Render or split into multiple smaller calls.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🚫</div>
+        <h4>No persistent filesystem</h4>
+        <p>Serverless functions are stateless. Writing files to <code>/tmp</code> works within a single invocation but don't rely on it persisting. Use Supabase Storage instead.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🧊</div>
+        <h4>Cold starts</h4>
+        <p>First request after inactivity incurs a ~200ms cold start. Edge runtime reduces this to ~5ms. For latency-sensitive paths, use Edge.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">👤</div>
+        <h4>Hobby = personal only</h4>
+        <p>The Hobby plan is for non-commercial personal projects per Vercel's ToS. Commercial projects need Pro ($20/mo per user).</p>
+      </div>
+    </div>
+
+    <div class="alert alert-info">
+      <span class="alert-icon">▲</span>
+      <p><strong>Best alternatives if you hit limits:</strong> Cloudflare Pages (unlimited bandwidth, no cold starts), Netlify (similar free tier), or self-host on a $5 VPS with Nginx.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <span>vercel-guide</span> · part of the Free Stack · <a href="index.html" style="color:var(--vc);text-decoration:none;">← back to index</a>
+</footer>
+
+</body>
+</html>

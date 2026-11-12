@@ -1,0 +1,159 @@
+<!--meta
+{
+  "title": "Vercel",
+  "group": "Hosting",
+  "minutes": 15,
+  "description": "Deploy frontends and functions on the Vercel Hobby plan: Git deploys, the CLI, environments, env vars, functions, cron jobs, domains and limits.",
+  "lede": "Push to GitHub and get a live site with a preview URL for every branch. This guide covers deploying, configuring and staying inside the Hobby plan.",
+  "chips": [["100 GB", "data transfer"], ["1M", "function invocations"], ["4 hrs", "active CPU"], ["300 s", "max function time"], ["Non-commercial", "use only"]],
+  "docs": [["Vercel docs", "https://vercel.com/docs"], ["Limits", "https://vercel.com/docs/limits"]],
+  "keywords": "hobby deploy nextjs preview production cli env vars functions fluid compute cron domains dns"
+}
+-->
+
+<h2 id="overview">What you get</h2>
+<p>Vercel builds your project from Git, serves static files from its global CDN and runs your server code as Vercel Functions. It detects most frameworks automatically, including Next.js, Vite, Astro, SvelteKit, Nuxt and plain static sites.</p>
+<div class="callout warn"><div><b>Hobby is for personal, non-commercial projects</b>Vercel defines commercial use broadly: taking payments, showing ads, selling a product or being paid to build the site all count. Asking for donations does not. If a project starts earning, move it to Pro.</div></div>
+
+<table>
+<tr><th>Resource</th><th>Hobby, per month</th></tr>
+<tr><td>Fast Data Transfer</td><td>100 GB</td></tr>
+<tr><td>Fast Origin Transfer</td><td>10 GB</td></tr>
+<tr><td>Function invocations</td><td>1,000,000</td></tr>
+<tr><td>Active CPU</td><td>4 hours</td></tr>
+<tr><td>Provisioned memory</td><td>360 GB-hours</td></tr>
+<tr><td>Image optimization</td><td>5,000 transformations</td></tr>
+<tr><td>Function duration</td><td>300 seconds default and max, 2 GB memory, 1 vCPU</td></tr>
+<tr><td>Builds</td><td>45 minutes per build, 1 at a time, 100 deployments a day</td></tr>
+<tr><td>Runtime logs</td><td>Kept for 1 hour</td></tr>
+</table>
+<p>On Hobby, going over an allotment does not create a bill. Vercel pauses the affected feature until the next cycle, so watch the Usage tab.</p>
+
+<h2 id="first-deploy">Deploy from GitHub</h2>
+<ol class="steps">
+<li><b>Push your project to GitHub</b>Make sure it builds locally with your normal build command first.</li>
+<li><b>Import it</b>Go to vercel.com/new, connect GitHub and pick the repository. Hobby can only import repositories owned by your personal account, not by a GitHub organization.</li>
+<li><b>Check the settings</b>Vercel picks the framework preset, build command and output folder. Set the Root Directory if the app lives in a subfolder of a monorepo.</li>
+<li><b>Add environment variables</b>Add them now so the first build has them. You can change them later.</li>
+<li><b>Deploy</b>You get a <code>project.vercel.app</code> URL in a minute or two. From now on every push deploys automatically.</li>
+</ol>
+
+<h2 id="environments">Production and preview</h2>
+<p>Each push creates a deployment. Which environment it lands in depends on the branch:</p>
+<table>
+<tr><th>Environment</th><th>Created by</th><th>URL</th></tr>
+<tr><td>Production</td><td>Pushes to the production branch, usually <code>main</code></td><td>Your project domain and custom domains</td></tr>
+<tr><td>Preview</td><td>Pushes to any other branch, and every pull request</td><td>A unique URL per deployment, plus one per branch</td></tr>
+<tr><td>Development</td><td>Your machine, with <code>vercel dev</code> or your framework's dev server</td><td><code>localhost</code></td></tr>
+</table>
+<p>Preview URLs are posted as a comment on the pull request, which makes review easy. By default, previews are protected by Vercel Authentication, so only people on your team can open them.</p>
+<p>To undo a bad release, open Deployments, pick an earlier production deployment and choose Instant Rollback. No rebuild is needed.</p>
+
+<h2 id="cli">The Vercel CLI</h2>
+<pre data-lang="sh">
+npm install -g vercel
+
+vercel login
+vercel link              # connect this folder to a project
+vercel                   # deploy a preview
+vercel --prod            # deploy to production
+vercel env pull .env.local   # download Development env vars
+vercel logs your-deployment-url
+</pre>
+<p>The CLI uploads your local files, so it is handy for quick tests. For normal work, prefer pushing to Git so every deployment matches a commit.</p>
+
+<h2 id="env-vars">Environment variables</h2>
+<ol class="steps">
+<li><b>Add the variable</b>Project, Settings, Environment Variables. Choose which environments get it: Production, Preview, Development or any mix.</li>
+<li><b>Mark secrets as sensitive</b>Sensitive values cannot be read back from the dashboard after you save them.</li>
+<li><b>Redeploy</b>Variables are read at build time and at runtime of new deployments. Existing deployments keep the old values until you redeploy.</li>
+</ol>
+<div class="callout"><div><b>Public prefixes ship to the browser</b>Variables starting with <code>NEXT_PUBLIC_</code> (Next.js) or <code>VITE_</code> (Vite) are compiled into client JavaScript. Only put publishable keys there, never secret keys.</div></div>
+
+<h2 id="functions">Functions</h2>
+<p>Any server code, such as a Next.js route handler or a file in the <code>api</code> folder, becomes a Vercel Function. Functions run with Fluid compute, which reuses warm instances for concurrent requests, so cold starts are rarer and you pay for active CPU rather than idle waiting.</p>
+<pre data-file="app/api/hello/route.ts" data-lang="ts">
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const name = searchParams.get('name') ?? 'world'
+  return Response.json({ message: `Hello ${name}` })
+}
+</pre>
+<p>Without a framework, export a <code>fetch</code> handler from a file in <code>api/</code>:</p>
+<pre data-file="api/hello.ts" data-lang="ts">
+export default {
+  fetch(request: Request) {
+    return new Response('Hello from Vercel')
+  },
+}
+</pre>
+
+<h3>Run work after responding</h3>
+<pre data-lang="ts">
+import { waitUntil } from '@vercel/functions'
+
+export async function POST(request: Request) {
+  const event = await request.json()
+  waitUntil(saveToDatabase(event))   // keeps running after the response
+  return new Response('ok')
+}
+</pre>
+
+<h3>Put functions near your database</h3>
+<p>Functions run in one region, Washington D.C. (<code>iad1</code>) by default. If your Supabase project is in, say, Frankfurt, change the function region in Project Settings, Functions to match. Every database round trip across an ocean adds around 100 ms.</p>
+
+<h3>Python and other runtimes</h3>
+<p>Vercel also runs Python (for example FastAPI or Flask), Go and Ruby functions, and container images. Long-lived processes such as a polling Telegram bot or a WebSocket server are a better fit for <a href="render-guide.html">Render</a>.</p>
+
+<h2 id="cron">Cron jobs</h2>
+<p>Cron jobs call one of your function paths on a schedule. Define them in <code>vercel.json</code>:</p>
+<pre data-file="vercel.json" data-lang="json">
+{
+  "crons": [
+    { "path": "/api/daily-cleanup", "schedule": "0 3 * * *" }
+  ]
+}
+</pre>
+<div class="callout warn"><div><b>Hobby crons run at most once a day</b>Expressions that run more often, such as every hour, fail the deployment. Timing is also loose: a job set for 03:00 can run any time between 03:00 and 03:59. For more frequent jobs, use <a href="keepalive-guide.html">GitHub Actions or cron-job.org</a>.</div></div>
+<p>Protect the route so strangers cannot trigger it. If you set a <code>CRON_SECRET</code> environment variable, Vercel sends it as a bearer token:</p>
+<pre data-lang="ts">
+export async function GET(request: Request) {
+  if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+  // do the job
+  return new Response('done')
+}
+</pre>
+
+<h2 id="domains">Custom domains</h2>
+<ol class="steps">
+<li><b>Add the domain</b>Project, Settings, Domains, Add. Add both <code>example.com</code> and <code>www.example.com</code> and choose which one redirects to the other.</li>
+<li><b>Create the DNS records</b>Vercel shows the exact records to add at your DNS provider: an A record for the apex domain and a CNAME for subdomains. Copy the values from the dashboard, since they can be specific to your project.</li>
+<li><b>Wait for verification</b>Once DNS resolves, Vercel issues an HTTPS certificate automatically. This usually takes minutes, occasionally up to a few hours.</li>
+</ol>
+<p>Using Cloudflare for DNS? Set the Vercel records to DNS only (grey cloud). See the <a href="cloudflare-guide.html#with-vercel-and-render">Cloudflare guide</a> for why.</p>
+
+<h2 id="config">Useful vercel.json settings</h2>
+<pre data-file="vercel.json" data-lang="json">
+{
+  "redirects": [
+    { "source": "/blog/:slug", "destination": "/posts/:slug", "permanent": true }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [{ "key": "X-Content-Type-Options", "value": "nosniff" }]
+    }
+  ],
+  "cleanUrls": true
+}
+</pre>
+<p>To skip builds for commits that do not touch your app, set an Ignored Build Step in Project Settings, Git. For example <code>git diff --quiet HEAD^ HEAD ./apps/web</code> skips the build when nothing in that folder changed.</p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+<details><summary>Build works locally but fails on Vercel</summary><div><p>Common causes: a missing environment variable, a file name whose case differs from the import (Linux is case sensitive), or a different Node.js version. Set the Node version in Project Settings, Build and Deployment, or with <code>engines.node</code> in <code>package.json</code>.</p></div></details>
+<details><summary>Environment variable is undefined</summary><div><p>Check that it is enabled for the environment you deployed to, then redeploy. Variables do not change existing deployments. In the browser, only variables with the public prefix exist.</p></div></details>
+<details><summary>Function timed out</summary><div><p>Hobby functions stop at 300 seconds. Move long work into a background job, or reply quickly and finish with <code>waitUntil</code>. Slow database calls are often a region mismatch.</p></div></details>
+<details><summary>404 on page refresh in a single-page app</summary><div><p>Add a rewrite so all paths serve <code>index.html</code>: <code>{"rewrites": [{"source": "/(.*)", "destination": "/"}]}</code>.</p></div></details>
+<details><summary>Cannot import a repository from my GitHub organization</summary><div><p>Hobby only connects repositories owned by your personal account. Move the repo to your account or use a Pro team.</p></div></details>

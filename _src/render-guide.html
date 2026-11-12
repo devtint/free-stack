@@ -1,0 +1,142 @@
+<!--meta
+{
+  "title": "Render",
+  "group": "Hosting",
+  "minutes": 14,
+  "description": "Run a Python or Node backend on Render's free instance: setup, start commands, ports, env vars, health checks, spin-down, render.yaml and limits.",
+  "lede": "Run an always-listening backend, such as an API or a webhook bot, without managing a server. This guide covers setup, the free instance's limits and how to work with them.",
+  "chips": [["750", "instance hours a month"], ["15 min", "idle before sleep"], ["~1 min", "wake-up time"], ["1 GB", "free Postgres, 30 days"]],
+  "docs": [["Render docs", "https://render.com/docs"], ["Free instances", "https://render.com/docs/free"]],
+  "keywords": "web service python node fastapi flask gunicorn uvicorn port spin down sleep health check blueprint render.yaml"
+}
+-->
+
+<h2 id="overview">What you get</h2>
+<p>Render runs your code as a web service on a container it builds from your Git repository. You can deploy Python, Node.js, Go, Ruby, Rust, Elixir or any Dockerfile. Each service gets an <code>onrender.com</code> URL with HTTPS.</p>
+<p>The free instance is meant for hobby projects and testing. Render itself says not to use it for production. The trade-offs are clear and easy to plan around:</p>
+<table>
+<tr><th>Limit</th><th>Free instance</th></tr>
+<tr><td>Instance hours</td><td>750 per workspace per month. Enough for one service running all month. Sleeping services use none.</td></tr>
+<tr><td>Spin-down</td><td>After 15 minutes with no inbound HTTP requests or WebSocket messages</td></tr>
+<tr><td>Spin-up</td><td>About one minute on the next request</td></tr>
+<tr><td>Disk</td><td>Ephemeral. Files you write are lost on redeploy, restart or spin-down</td></tr>
+<tr><td>Not available</td><td>Persistent disks, scaling, SSH and shell access, one-off jobs, outbound SMTP ports 25, 465 and 587</td></tr>
+<tr><td>Free Postgres</td><td>1 GB, one per workspace, expires 30 days after creation (14-day grace period, then deleted)</td></tr>
+<tr><td>Free Key Value</td><td>In memory only, data is lost on restart</td></tr>
+</table>
+<div class="callout"><div><b>Use Supabase for your database</b>Render's free Postgres is deleted after 30 days. For anything you want to keep, put the data in <a href="supabase-guide.html">Supabase</a> and use Render only for compute.</div></div>
+
+<h2 id="create">Create a web service</h2>
+<ol class="steps">
+<li><b>Connect your repository</b>In the dashboard choose New, Web Service, and connect GitHub or GitLab. Pick the repository and branch.</li>
+<li><b>Choose the runtime and region</b>Render guesses the language. Pick the region closest to your database or users.</li>
+<li><b>Set the build and start commands</b>See the table below for common stacks.</li>
+<li><b>Choose the Free instance type</b>Under Instance Type, select Free.</li>
+<li><b>Add environment variables</b>Add your secrets now. You can also upload whole secret files, such as a <code>.env</code> or a credentials JSON.</li>
+<li><b>Deploy</b>Watch the logs. When you see the service is live, open the URL. Later pushes to the branch redeploy automatically.</li>
+</ol>
+
+<h3>Build and start commands</h3>
+<table>
+<tr><th>Stack</th><th>Build command</th><th>Start command</th></tr>
+<tr><td>FastAPI</td><td><code>pip install -r requirements.txt</code></td><td><code>uvicorn main:app --host 0.0.0.0 --port $PORT</code></td></tr>
+<tr><td>Flask</td><td><code>pip install -r requirements.txt</code></td><td><code>gunicorn app:app</code></td></tr>
+<tr><td>Django</td><td><code>pip install -r requirements.txt</code></td><td><code>gunicorn mysite.wsgi</code></td></tr>
+<tr><td>Node / Express</td><td><code>npm ci</code></td><td><code>node server.js</code></td></tr>
+<tr><td>Bun</td><td><code>bun install</code></td><td><code>bun run start</code></td></tr>
+</table>
+
+<h2 id="port">Bind to the right port</h2>
+<p>Render sets a <code>PORT</code> environment variable (default <code>10000</code>) and expects your app to listen on <code>0.0.0.0</code> at that port. Listening on <code>localhost</code> or a hard-coded port is the most common reason a first deploy fails with "no open ports detected".</p>
+<pre data-file="server.js" data-lang="js">
+const port = process.env.PORT || 3000
+app.listen(port, '0.0.0.0', () => console.log(`listening on ${port}`))
+</pre>
+<pre data-file="main.py" data-lang="py">
+import os
+import uvicorn
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/healthz")
+def health():
+    return {"ok": True}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+</pre>
+<p>Gunicorn reads <code>PORT</code> automatically on Render, so <code>gunicorn app:app</code> works without a bind flag.</p>
+
+<h2 id="env-vars">Environment variables and secret files</h2>
+<ul>
+<li>Set variables in the service's Environment tab, or share a set across services with an Environment Group.</li>
+<li>Saving a change triggers a redeploy, so the new value is live within a minute or two.</li>
+<li>Secret files are mounted at <code>/etc/secrets/&lt;filename&gt;</code> and also placed in your app's root folder.</li>
+<li>Pin your Python version with a <code>PYTHON_VERSION</code> variable or a <code>.python-version</code> file, and your Node version with <code>NODE_VERSION</code> or <code>engines</code> in <code>package.json</code>.</li>
+</ul>
+<p>Render also provides variables you can read at runtime, such as <code>RENDER_EXTERNAL_URL</code> (your public URL, handy for registering webhooks) and <code>RENDER_GIT_COMMIT</code>.</p>
+
+<h2 id="health-checks">Health checks and zero-downtime deploys</h2>
+<p>Set a Health Check Path in the service settings, for example <code>/healthz</code>. Render waits for it to return a 2xx or 3xx status before switching traffic to a new deploy, and restarts the service if it keeps failing. Keep the endpoint fast and free of side effects.</p>
+
+<h2 id="spin-down">Dealing with spin-down</h2>
+<p>A sleeping free service takes about a minute to answer the first request. You have three options:</p>
+<ol class="steps">
+<li><b>Accept it</b>Fine for demos and personal tools. Show a friendly loading state in your frontend.</li>
+<li><b>Keep one service awake</b>Ping it every 10 to 14 minutes. 750 hours covers exactly one always-on service. Two always-on services would run out around the middle of the month, and then all your free services stop until the 1st. Setup is in the <a href="keepalive-guide.html">keep-alive guide</a>.</li>
+<li><b>Upgrade that one service</b>The smallest paid instance never sleeps and adds persistent disks and shell access.</li>
+</ol>
+<div class="callout warn"><div><b>Pinging does not fix the disk</b>Render can restart free services at any time, and the filesystem is wiped when it does. Store uploads in Supabase Storage or Cloudflare R2, and state in a database.</div></div>
+
+<h2 id="blueprint">Infrastructure as code with render.yaml</h2>
+<p>A Blueprint describes your services in a file in the repo, so you can recreate the setup in one click. Add <code>render.yaml</code> at the repository root, then choose New, Blueprint in the dashboard.</p>
+<pre data-file="render.yaml" data-lang="yaml">
+services:
+  - type: web
+    name: my-api
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: SUPABASE_URL
+        sync: false          # asked for once when you create the Blueprint
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: WEBHOOK_SECRET
+        generateValue: true  # Render creates a random value
+</pre>
+<p><code>autoDeployTrigger</code> can be <code>commit</code> (deploy every push), <code>checksPass</code> (wait for your CI checks to pass) or <code>off</code>.</p>
+
+<h2 id="deploy-hooks">Deploy hooks and CI</h2>
+<p>Each service has a secret Deploy Hook URL in its settings. A POST request to it starts a deploy. That lets you turn off auto-deploy and deploy from GitHub Actions only after tests pass:</p>
+<pre data-file=".github/workflows/deploy.yml" data-lang="yaml">
+name: Test and deploy
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt && pytest
+      - run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+</pre>
+<p>The simpler alternative is <code>autoDeployTrigger: checksPass</code>, which waits for your GitHub checks without a hook.</p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+<details><summary>"No open ports detected" or the deploy times out</summary><div><p>Your app is not listening on <code>0.0.0.0:$PORT</code>. Check the start command and the host your server binds to.</p></div></details>
+<details><summary>Build fails with a missing module</summary><div><p>The package is installed on your machine but not listed in <code>requirements.txt</code> or <code>package.json</code>. Recreate the file from a clean virtual environment.</p></div></details>
+<details><summary>Uploaded files disappear</summary><div><p>The free instance has an ephemeral disk. Write files to object storage instead.</p></div></details>
+<details><summary>Emails will not send</summary><div><p>Outbound SMTP ports 25, 465 and 587 are blocked on free services. Use an email API over HTTPS, such as Resend.</p></div></details>
+<details><summary>All my services stopped before the end of the month</summary><div><p>The workspace ran out of its 750 free instance hours. Keep only one service awake, or upgrade the busy one.</p></div></details>

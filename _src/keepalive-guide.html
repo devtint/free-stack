@@ -1,0 +1,117 @@
+<!--meta
+{
+  "title": "Keep-alive",
+  "group": "Workflow",
+  "minutes": 10,
+  "description": "Stop free services from sleeping: a health endpoint, UptimeRobot, cron-job.org, GitHub Actions and Cloudflare cron, plus keeping Supabase from pausing.",
+  "lede": "Free tiers save money by putting idle services to sleep. This guide shows how to keep the one service that matters awake, and how to stop Supabase from pausing, without breaking any rules.",
+  "chips": [["15 min", "Render sleep timer"], ["7 days", "Supabase pause timer"], ["50", "UptimeRobot monitors"], ["1 min", "cron-job.org interval"]],
+  "docs": [["UptimeRobot", "https://uptimerobot.com"], ["cron-job.org", "https://cron-job.org"], ["Render free limits", "https://render.com/docs/free"]],
+  "keywords": "uptime robot cron-job.org github actions schedule ping health endpoint sleep spin down pause supabase render"
+}
+-->
+
+<h2 id="the-problem">Which services sleep</h2>
+<table>
+<tr><th>Service</th><th>What happens</th><th>When</th><th>Cost of waking</th></tr>
+<tr><td>Render free web service</td><td>Spins down</td><td>15 minutes without inbound traffic</td><td>About a minute on the next request</td></tr>
+<tr><td>Supabase free project</td><td>Pauses</td><td>About 7 days without activity</td><td>Manual restore from the dashboard</td></tr>
+<tr><td>Vercel and Cloudflare Workers</td><td>Nothing to fix</td><td>Functions scale to zero but start in milliseconds</td><td>None worth worrying about</td></tr>
+</table>
+
+<div class="callout warn"><div><b>Stay inside the limits</b>
+<p>Render gives each workspace 750 free instance hours a month. That is enough for exactly one service to run all month. If you keep two awake, both stop around day 16 and every free service in the workspace is suspended until the 1st.</p>
+<p>Keep only the service that needs it awake, such as a bot webhook. Let demos sleep.</p></div></div>
+
+<h2 id="health-endpoint">Add a health endpoint</h2>
+<p>Pingers need a URL that answers quickly. Make one that does no real work, so a ping is cheap and never changes data.</p>
+<pre data-file="FastAPI" data-lang="py">
+@app.get("/healthz")
+def healthz():
+    return {"ok": True}
+</pre>
+<pre data-file="Express" data-lang="js">
+app.get('/healthz', (req, res) => res.json({ ok: true }))
+</pre>
+<p>Set the same path as the Health Check Path in Render so deploys also use it.</p>
+
+<h2 id="uptimerobot">Option 1: UptimeRobot</h2>
+<p>The free plan gives you 50 monitors checked every 5 minutes, and it is allowed for commercial projects. You also get email alerts when your service goes down, which is useful on its own.</p>
+<ol class="steps">
+<li><b>Create an account</b>Sign up at uptimerobot.com and verify your email.</li>
+<li><b>Add a monitor</b>New monitor, type HTTP(s). Paste <code>https://your-service.onrender.com/healthz</code>. Interval 5 minutes.</li>
+<li><b>Set up alerts</b>Pick your email as the alert contact. You will hear about outages before your users do.</li>
+<li><b>Check it after a day</b>The response time chart should show no one-minute wake-up spikes.</li>
+</ol>
+
+<h2 id="cron-job-org">Option 2: cron-job.org</h2>
+<p>A free service that calls a URL on any schedule, down to every minute. It is the most flexible option when you need custom timing or headers.</p>
+<ol class="steps">
+<li><b>Create a cronjob</b>Sign up, then Create cronjob. Enter your health URL.</li>
+<li><b>Pick the schedule</b>Every 10 minutes is plenty for Render, which sleeps after 15.</li>
+<li><b>Turn on failure notifications</b>Jobs are disabled automatically after 25 failures in a row. With notifications on, you get an email when that happens.</li>
+</ol>
+<p>Requests time out after 30 seconds. A sleeping Render service can take longer than that to wake, so the very first ping may fail. Once the service is warm, pings succeed.</p>
+
+<h2 id="github-actions">Option 3: GitHub Actions</h2>
+<p>A scheduled workflow keeps everything in your repository and costs nothing on public repos.</p>
+<pre data-file=".github/workflows/keepalive.yml" data-lang="yaml">
+name: Keep alive
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping Render
+        run: curl -fsS --retry 3 --retry-delay 20 --max-time 90 "${{ vars.HEALTH_URL }}"
+</pre>
+<div class="callout"><div><b>Good as a backup, not the only pinger</b>The shortest schedule is every 5 minutes, runs can be delayed when GitHub is busy, and public repositories disable schedules after 60 days of no activity. Pair it with UptimeRobot or cron-job.org.</div></div>
+
+<h2 id="supabase">Keep Supabase from pausing</h2>
+<p>Supabase looks at real activity. A request that touches the database is the reliable way to count. Create a tiny table that anyone can read, then query it a few times a week.</p>
+<pre data-file="SQL Editor" data-lang="sql">
+create table public.heartbeat (id int primary key, note text);
+insert into public.heartbeat values (1, 'ok');
+
+alter table public.heartbeat enable row level security;
+create policy "Public read heartbeat" on public.heartbeat
+  for select to anon using (true);
+</pre>
+<pre data-file=".github/workflows/supabase-heartbeat.yml" data-lang="yaml">
+name: Supabase heartbeat
+on:
+  schedule:
+    - cron: "23 6 */2 * *"     # every second day at 06:23 UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -fsS "${{ vars.SUPABASE_URL }}/rest/v1/heartbeat?select=id" \
+            -H "apikey: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}"
+</pre>
+<p>If your app has real users every few days, you do not need this. If the project does pause, open the dashboard and choose Restore. Paused projects can be restored for up to a year.</p>
+
+<h2 id="cloudflare-cron">Option 4: a Cloudflare cron Worker</h2>
+<p>If you already use Cloudflare, a Worker with a Cron Trigger is very reliable and does not depend on GitHub. One Worker can ping several URLs. Setup is in the <a href="cloudflare-guide.html#workers">Cloudflare guide</a>.</p>
+
+<h2 id="recommended">Recommended setup</h2>
+<table>
+<tr><th>Goal</th><th>Use</th></tr>
+<tr><td>Keep one Render service awake</td><td>UptimeRobot every 5 minutes, which also alerts you when it is down</td></tr>
+<tr><td>Need custom timing or headers</td><td>cron-job.org</td></tr>
+<tr><td>Stop Supabase pausing</td><td>GitHub Actions heartbeat every 2 days</td></tr>
+<tr><td>A second, independent pinger</td><td>Cloudflare cron Worker</td></tr>
+</table>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+<details><summary>Service still sleeps even though pings succeed</summary><div><p>Check the pinger hits the public <code>onrender.com</code> URL or your custom domain, not an internal one. The interval must be under 15 minutes.</p></div></details>
+<details><summary>All free services stopped mid-month</summary><div><p>The workspace ran out of 750 instance hours because more than one service was kept awake. Remove extra monitors.</p></div></details>
+<details><summary>The GitHub keep-alive workflow stopped</summary><div><p>Schedules are disabled after 60 days without repository activity in public repos. Re-enable it in the Actions tab.</p></div></details>

@@ -1,0 +1,283 @@
+<!--meta
+{
+  "title": "Telegram bots",
+  "group": "Build",
+  "minutes": 18,
+  "description": "Build and deploy a Telegram bot with python-telegram-bot v22: BotFather setup, polling vs webhooks, a FastAPI webhook on Render, security, Supabase storage and rate limits.",
+  "lede": "Build a bot in Python, run it locally with polling, then deploy it as a webhook on Render with Supabase as its database. Every piece runs on a free plan.",
+  "chips": [["v22", "python-telegram-bot"], ["Python 3.10+", "required"], ["Webhook", "on Render"], ["30 msg/s", "broadcast limit"]],
+  "docs": [["Bot API", "https://core.telegram.org/bots/api"], ["python-telegram-bot", "https://docs.python-telegram-bot.org"]],
+  "keywords": "botfather token python-telegram-bot ptb webhook polling setwebhook secret token fastapi render supabase rate limit commands"
+}
+-->
+
+<h2 id="overview">How a bot works</h2>
+<p>A Telegram bot is a normal program that talks to Telegram's Bot API over HTTPS. Telegram delivers messages to your bot in one of two ways:</p>
+<table>
+<tr><th></th><th>Polling</th><th>Webhook</th></tr>
+<tr><td>How</td><td>Your bot keeps asking Telegram for new updates</td><td>Telegram sends each update to your HTTPS URL</td></tr>
+<tr><td>Needs a public URL</td><td>No</td><td>Yes, on port 443, 80, 88 or 8443</td></tr>
+<tr><td>Best for</td><td>Local development</td><td>Production, and hosts that sleep when idle</td></tr>
+<tr><td>On Render free</td><td>Breaks when the service sleeps</td><td>Works. An incoming update wakes the service.</td></tr>
+</table>
+<p>You can only use one at a time. Setting a webhook disables polling, and polling fails while a webhook is set.</p>
+
+<h2 id="botfather">Create the bot with BotFather</h2>
+<ol class="steps">
+<li><b>Open @BotFather</b>Search for it in Telegram (check for the blue verified badge) and send <code>/newbot</code>.</li>
+<li><b>Choose a name and username</b>The name is what people see. The username must end in <code>bot</code>, for example <code>notes_helper_bot</code>.</li>
+<li><b>Save the token</b>BotFather replies with a token like <code>123456789:AA...</code>. Anyone with it controls your bot. Store it as an environment variable, never in code.</li>
+<li><b>Set the basics</b>Use <code>/setdescription</code>, <code>/setabouttext</code> and <code>/setuserpic</code> so the bot looks trustworthy.</li>
+</ol>
+
+<h3>Useful BotFather commands</h3>
+<table>
+<tr><th>Command</th><th>Does</th></tr>
+<tr><td><code>/mybots</code></td><td>Manage existing bots and reach all settings</td></tr>
+<tr><td><code>/setcommands</code></td><td>Set the menu of slash commands users see</td></tr>
+<tr><td><code>/setprivacy</code></td><td>In groups, whether the bot sees all messages or only commands and mentions</td></tr>
+<tr><td><code>/setjoingroups</code></td><td>Allow or block adding the bot to groups</td></tr>
+<tr><td><code>/revoke</code></td><td>Issue a new token and invalidate the old one. Do this immediately if the token leaks.</td></tr>
+</table>
+
+<h2 id="first-bot">Your first bot, with polling</h2>
+<pre data-lang="sh">
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install "python-telegram-bot~=22.0"
+export BOT_TOKEN="123456789:AA..."
+</pre>
+<pre data-file="bot.py" data-lang="py">
+import logging
+import os
+
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+
+logging.basicConfig(level=logging.INFO)
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    name = update.effective_user.first_name
+    await update.message.reply_text(f"Hi {name}. Send me any text and I will echo it.")
+
+
+async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text("Commands: /start, /help")
+
+
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(update.message.text)
+
+
+def build_app() -> Application:
+    app = Application.builder().token(os.environ["BOT_TOKEN"]).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_cmd))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    return app
+
+
+if __name__ == "__main__":
+    build_app().run_polling(allowed_updates=Update.ALL_TYPES)
+</pre>
+<p>Run <code>python bot.py</code> and message your bot. Everything in python-telegram-bot v20 and later is async, so handlers are <code>async def</code> and every API call is awaited.</p>
+
+<h2 id="webhook-on-render">Deploy as a webhook on Render</h2>
+<p>For production, run the bot inside a small FastAPI app. It receives updates on <code>/telegram</code>, exposes <code>/healthz</code> for uptime checks, and registers its own webhook on startup.</p>
+<pre data-file="main.py" data-lang="py">
+import os
+import secrets
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, HTTPException, Request, Response
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
+
+from handlers import echo, help_cmd, start   # the functions from bot.py
+
+TOKEN = os.environ["BOT_TOKEN"]
+SECRET = os.environ["WEBHOOK_SECRET"]           # 1-256 chars: A-Z a-z 0-9 _ -
+BASE_URL = os.environ["RENDER_EXTERNAL_URL"]    # set by Render automatically
+
+ptb = Application.builder().token(TOKEN).updater(None).build()
+ptb.add_handler(CommandHandler("start", start))
+ptb.add_handler(CommandHandler("help", help_cmd))
+ptb.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await ptb.bot.set_webhook(
+        url=f"{BASE_URL}/telegram",
+        secret_token=SECRET,
+        allowed_updates=Update.ALL_TYPES,
+    )
+    async with ptb:
+        await ptb.start()
+        yield
+        await ptb.stop()
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+@app.post("/telegram")
+async def telegram_webhook(request: Request) -> Response:
+    header = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    if not secrets.compare_digest(header, SECRET):
+        raise HTTPException(status_code=403)
+    update = Update.de_json(await request.json(), ptb.bot)
+    await ptb.process_update(update)
+    return Response(status_code=200)
+
+
+@app.get("/healthz")
+def healthz() -> dict:
+    return {"ok": True}
+</pre>
+<pre data-file="requirements.txt" data-lang="sh">
+python-telegram-bot~=22.0
+fastapi
+uvicorn[standard]
+supabase
+</pre>
+
+<ol class="steps">
+<li><b>Create a Render web service</b>Connect the repository. Build command <code>pip install -r requirements.txt</code>. Start command <code>uvicorn main:app --host 0.0.0.0 --port $PORT</code>.</li>
+<li><b>Add environment variables</b><code>BOT_TOKEN</code>, a random <code>WEBHOOK_SECRET</code> (for example from <code>python -c "import secrets; print(secrets.token_urlsafe(32))"</code>), and your Supabase values.</li>
+<li><b>Set the health check path</b>Use <code>/healthz</code>.</li>
+<li><b>Deploy and test</b>The webhook registers on startup. Message the bot. The first reply after a sleep takes about a minute while Render wakes up.</li>
+<li><b>Keep it awake (optional)</b>Point UptimeRobot at <code>/healthz</code> so replies are instant. See the <a href="keepalive-guide.html">keep-alive guide</a>.</li>
+</ol>
+
+<div class="callout"><div><b>Telegram retries for you</b>If your service is asleep, Telegram holds the update and retries delivery, so messages are delayed, not lost. Pending updates are kept for up to 24 hours.</div></div>
+
+<h3>Check or reset the webhook by hand</h3>
+<pre data-lang="sh">
+# Status, last error and pending update count
+curl "https://api.telegram.org/bot$BOT_TOKEN/getWebhookInfo"
+
+# Remove it (needed before using polling again)
+curl "https://api.telegram.org/bot$BOT_TOKEN/deleteWebhook?drop_pending_updates=true"
+</pre>
+
+<h2 id="security">Security</h2>
+<h3>Verify every webhook request</h3>
+<p>Anyone who learns your webhook URL can post fake updates to it. The <code>secret_token</code> you pass to <code>setWebhook</code> is sent back in the <code>X-Telegram-Bot-Api-Secret-Token</code> header on every real request. Reject anything without it, using a constant-time comparison as in the example above.</p>
+
+<h3>Restrict admin commands</h3>
+<pre data-lang="py">
+ADMIN_IDS = {int(x) for x in os.environ.get("ADMIN_IDS", "").split(",") if x}
+
+# Only these users can trigger /stats
+ptb.add_handler(CommandHandler("stats", stats, filters=filters.User(user_id=ADMIN_IDS)))
+</pre>
+
+<h3>Limit abuse per user</h3>
+<pre data-lang="py">
+import time
+
+LAST_SEEN: dict[int, float] = {}
+
+async def rate_limited(update: Update) -> bool:
+    uid = update.effective_user.id
+    now = time.monotonic()
+    if now - LAST_SEEN.get(uid, 0) < 1.0:     # one request per second
+        return True
+    LAST_SEEN[uid] = now
+    return False
+</pre>
+<p>This in-memory version resets when the service restarts. That is fine for basic spam protection. For strict quotas, store counters in your database.</p>
+
+<h3>Checklist</h3>
+<ul>
+<li>Token and secrets only in environment variables, with <code>.env</code> in <code>.gitignore</code>.</li>
+<li>Validate and size-limit user input before saving it or passing it to another API.</li>
+<li>When downloading user files, check the size first and never execute them.</li>
+<li>Log errors, but never log the token or full update payloads with personal data.</li>
+<li>Revoke the token with <code>/revoke</code> the moment you suspect a leak.</li>
+</ul>
+
+<h2 id="supabase">Store users in Supabase</h2>
+<p>Render's disk is wiped on restart, so keep state in <a href="supabase-guide.html">Supabase</a>. The bot runs on a server, so it uses the secret key.</p>
+<pre data-file="SQL Editor" data-lang="sql">
+create table public.bot_users (
+  telegram_id bigint primary key,
+  username text,
+  first_name text,
+  language_code text,
+  message_count int not null default 0,
+  first_seen timestamptz not null default now(),
+  last_seen timestamptz not null default now()
+);
+
+alter table public.bot_users enable row level security;
+-- No policies: only the secret key (server side) can read or write.
+</pre>
+<pre data-file="db.py" data-lang="py">
+import asyncio
+import os
+from datetime import datetime, timezone
+
+from supabase import create_client
+
+sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SECRET_KEY"])
+
+
+def _upsert(user) -> None:
+    sb.table("bot_users").upsert({
+        "telegram_id": user.id,
+        "username": user.username,
+        "first_name": user.first_name,
+        "language_code": user.language_code,
+        "last_seen": datetime.now(timezone.utc).isoformat(),
+    }).execute()
+
+
+async def track_user(user) -> None:
+    # The client is synchronous, so run it off the event loop
+    await asyncio.to_thread(_upsert, user)
+</pre>
+<pre data-lang="py">
+async def start(update, context):
+    await track_user(update.effective_user)
+    await update.message.reply_text("Welcome!")
+</pre>
+
+<h2 id="limits">Telegram's rate limits</h2>
+<p>Telegram throttles bots that send too fast and returns a <code>429 Too Many Requests</code> error with a <code>retry_after</code> value.</p>
+<table>
+<tr><th>Where</th><th>Stay under</th></tr>
+<tr><td>A single chat</td><td>About 1 message per second</td></tr>
+<tr><td>A group</td><td>20 messages per minute</td></tr>
+<tr><td>Broadcasts to many users</td><td>About 30 messages per second overall</td></tr>
+</table>
+<p>For broadcasts, python-telegram-bot includes a rate limiter that queues messages for you:</p>
+<pre data-lang="sh">
+pip install "python-telegram-bot[rate-limiter]~=22.0"
+</pre>
+<pre data-lang="py">
+from telegram.ext import AIORateLimiter
+
+app = Application.builder().token(TOKEN).rate_limiter(AIORateLimiter()).build()
+</pre>
+
+<h2 id="commands-menu">Set the command menu from code</h2>
+<pre data-lang="py">
+from telegram import BotCommand
+
+async def post_init(app: Application) -> None:
+    await app.bot.set_my_commands([
+        BotCommand("start", "Start the bot"),
+        BotCommand("help", "How to use it"),
+    ])
+
+app = Application.builder().token(TOKEN).post_init(post_init).build()
+</pre>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+<details><summary>"Conflict: terminated by other getUpdates request"</summary><div><p>Two copies are polling with the same token, often your laptop and a server. Stop one. If a webhook is set, polling fails too, so call <code>deleteWebhook</code> first.</p></div></details>
+<details><summary>Webhook set, but the bot never replies</summary><div><p>Run <code>getWebhookInfo</code>. The <code>last_error_message</code> field tells you whether Telegram got a 403 (secret mismatch), a 404 (wrong path) or a timeout.</p></div></details>
+<details><summary>Bot does not see messages in a group</summary><div><p>Privacy mode is on by default, so the bot only sees commands and replies. Turn it off with <code>/setprivacy</code>, then remove and re-add the bot to the group.</p></div></details>
+<details><summary>First reply takes a minute</summary><div><p>The Render service was asleep. Add an uptime monitor on <code>/healthz</code>, or accept the delay for low-traffic bots.</p></div></details>

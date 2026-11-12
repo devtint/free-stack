@@ -1,0 +1,206 @@
+<!--meta
+{
+  "title": "GitHub",
+  "group": "Workflow",
+  "minutes": 15,
+  "description": "Use GitHub on the free plan: repository setup, pull requests, Actions CI, secrets, scheduled workflows, Pages, rulesets and Dependabot.",
+  "lede": "Host your code, review changes, run tests on every push and publish a site, all on the free plan. This guide focuses on the parts solo builders use every week.",
+  "chips": [["Unlimited", "public and private repos"], ["Free", "Actions on public repos"], ["~2,000", "Linux minutes for private repos"], ["5 min", "shortest schedule"]],
+  "docs": [["GitHub Docs", "https://docs.github.com"], ["Actions billing", "https://docs.github.com/en/billing/concepts/product-billing/github-actions"]],
+  "keywords": "repository pull request actions workflow ci secrets variables schedule cron pages rulesets branch protection dependabot"
+}
+-->
+
+<h2 id="overview">What the free plan includes</h2>
+<table>
+<tr><th>Feature</th><th>Free plan</th></tr>
+<tr><td>Repositories</td><td>Unlimited public and private</td></tr>
+<tr><td>Actions on public repos</td><td>Free on standard GitHub-hosted runners</td></tr>
+<tr><td>Actions on private repos</td><td>A monthly allowance worth about 2,000 minutes on standard Linux runners. Windows uses it about 1.7 times faster, macOS about 10 times faster.</td></tr>
+<tr><td>Storage</td><td>500 MB for artifacts and Packages, 10 GB of cache per repository</td></tr>
+<tr><td>Pages</td><td>Free for public repositories</td></tr>
+</table>
+
+<h2 id="repo-setup">Set up a repository</h2>
+<p>Create the repository on GitHub, then push your local project (see the <a href="git-guide.html#daily-cycle">Git guide</a>). These files make it easier for you and others to work with:</p>
+<table>
+<tr><th>File</th><th>Why</th></tr>
+<tr><td><code>README.md</code></td><td>What it is, how to run it, how to deploy it</td></tr>
+<tr><td><code>.gitignore</code></td><td>Keeps dependencies, builds and secrets out</td></tr>
+<tr><td><code>.env.example</code></td><td>Lists the variables the app needs, with fake values</td></tr>
+<tr><td><code>LICENSE</code></td><td>Without one, nobody can legally reuse your code. MIT is a common choice.</td></tr>
+<tr><td><code>.github/workflows/</code></td><td>Your CI and automation</td></tr>
+</table>
+
+<h3>Turn on the safety features</h3>
+<p>In Settings, Advanced Security (Code security on some accounts), enable <strong>secret scanning</strong> and <strong>push protection</strong>. Push protection blocks a push that contains a recognised API key before it ever reaches GitHub.</p>
+
+<h2 id="pull-requests">Work through pull requests</h2>
+<p>Even alone, opening a pull request for each change is worth it: CI runs on it, Vercel and Render post preview links, and you get a readable record of why things changed.</p>
+<ol class="steps">
+<li><b>Branch and push</b><code>git switch -c fix/login</code>, commit, <code>git push -u origin fix/login</code>.</li>
+<li><b>Open the pull request</b>GitHub shows a banner after the push. Write what changed and why. Writing <code>Closes #12</code> in the description closes that issue on merge.</li>
+<li><b>Wait for checks</b>Tests and preview deployments report back on the pull request.</li>
+<li><b>Merge</b>Squash and merge keeps one tidy commit per pull request on <code>main</code>. Delete the branch afterwards.</li>
+</ol>
+
+<h2 id="actions">GitHub Actions basics</h2>
+<p>A workflow is a YAML file in <code>.github/workflows/</code>. It says <strong>when</strong> to run (events), <strong>where</strong> (a runner) and <strong>what</strong> (steps).</p>
+<pre data-file=".github/workflows/ci.yml" data-lang="yaml">
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+</pre>
+
+<h3>Python version</h3>
+<pre data-file=".github/workflows/ci.yml" data-lang="yaml">
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pytest
+</pre>
+
+<h3>Save minutes</h3>
+<ul>
+<li>Use <code>cache:</code> on the setup actions so dependencies are not downloaded on every run.</li>
+<li>Skip runs for documentation-only changes with <code>paths-ignore: ["**.md"]</code> under the event.</li>
+<li>Cancel superseded runs when you push again quickly:</li>
+</ul>
+<pre data-lang="yaml">
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+</pre>
+
+<h2 id="secrets">Secrets and variables</h2>
+<p>Add them in Settings, Secrets and variables, Actions. Secrets are encrypted and masked in logs. Variables are for non-sensitive settings.</p>
+<pre data-lang="yaml">
+steps:
+  - run: ./deploy.sh
+    env:
+      API_TOKEN: ${{ secrets.API_TOKEN }}
+      APP_ENV: ${{ vars.APP_ENV }}
+</pre>
+<ul>
+<li>Secrets are not passed to workflows triggered by pull requests from forks, so outsiders cannot steal them.</li>
+<li>Give each workflow the least access it needs with a <code>permissions:</code> block, for example <code>contents: read</code>.</li>
+<li>Prefer pinning third-party actions to a full commit SHA rather than a tag. Tags can be moved; SHAs cannot.</li>
+</ul>
+
+<h2 id="scheduled">Scheduled workflows</h2>
+<p>The <code>schedule</code> event runs a workflow on a cron expression. It is handy for keep-alive pings, nightly backups and reports.</p>
+<pre data-file=".github/workflows/nightly.yml" data-lang="yaml">
+on:
+  schedule:
+    - cron: "17 3 * * *"     # 03:17 UTC every day
+  workflow_dispatch:          # adds a "Run workflow" button
+</pre>
+<div class="callout warn"><div><b>Know the scheduling rules</b>
+<p>The shortest interval is every 5 minutes. Times are in UTC. Runs can be delayed or dropped when GitHub is busy, especially at the top of the hour, so choose an odd minute like <code>17</code>.</p>
+<p>Schedules only run on the default branch, and in public repositories they are disabled automatically after 60 days with no repository activity. GitHub emails you before that happens.</p></div></div>
+
+<h2 id="pages">GitHub Pages</h2>
+<p>Pages hosts static sites for free from a public repository at <code>username.github.io/repo</code>, with HTTPS and optional custom domains.</p>
+<h3>Plain HTML</h3>
+<p>In Settings, Pages, choose Deploy from a branch, pick <code>main</code> and the root folder. This site works exactly like that.</p>
+<h3>Built sites (Vite, Astro, Next.js static export)</h3>
+<p>Choose GitHub Actions as the source, then add a workflow that builds and uploads the output folder:</p>
+<pre data-file=".github/workflows/pages.yml" data-lang="yaml">
+name: Deploy Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci && npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
+</pre>
+<p>A site served from <code>/repo/</code> needs its base path set, for example <code>base: '/repo/'</code> in <code>vite.config.ts</code>. Otherwise CSS and JavaScript load from the wrong URL.</p>
+
+<h2 id="rulesets">Protect your main branch</h2>
+<p>Rulesets (Settings, Rules, Rulesets) replace classic branch protection and can target several branches at once. A sensible solo setup for <code>main</code>:</p>
+<ul>
+<li><strong>Require a pull request before merging</strong>, with zero required approvals, so every change goes through CI.</li>
+<li><strong>Require status checks to pass</strong>, and select your test job.</li>
+<li><strong>Block force pushes</strong> and <strong>restrict deletions</strong>.</li>
+</ul>
+<p>Rulesets are available on public repositories with the free plan. For private repositories some rules need a paid plan.</p>
+
+<h2 id="dependabot">Dependabot</h2>
+<p>Dependabot opens pull requests when your dependencies have security fixes or new versions. Enable alerts and security updates in Settings, then add a config for regular version updates:</p>
+<pre data-file=".github/dependabot.yml" data-lang="yaml">
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+</pre>
+<p>Grouping minor and patch updates turns a dozen small pull requests into one.</p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+<details><summary>Workflow does not run at all</summary><div><p>Check the file is in <code>.github/workflows/</code> on the branch that received the event, and that the YAML is valid. The Actions tab shows parse errors.</p></div></details>
+<details><summary>Scheduled workflow stopped running</summary><div><p>In a public repo with no activity for 60 days, schedules are disabled. Re-enable it from the Actions tab, or make a commit.</p></div></details>
+<details><summary>"Resource not accessible by integration"</summary><div><p>The workflow's <code>GITHUB_TOKEN</code> lacks a permission. Add it in a <code>permissions:</code> block, for example <code>pull-requests: write</code>.</p></div></details>
+<details><summary>Pages shows a 404 or unstyled page</summary><div><p>Check the Pages source setting, that an <code>index.html</code> exists in the published folder, and the base path for project sites.</p></div></details>

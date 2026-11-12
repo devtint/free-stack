@@ -1,0 +1,282 @@
+<!--meta
+{
+  "title": "Supabase",
+  "group": "Data",
+  "minutes": 18,
+  "description": "Set up Supabase on the free plan: API keys, tables, Row Level Security, auth, storage, realtime, Edge Functions and avoiding the inactivity pause.",
+  "lede": "Postgres, auth, file storage and realtime in one project. This guide takes you from an empty account to a secured table your app can read and write.",
+  "chips": [["500 MB", "database"], ["50,000", "monthly users"], ["1 GB", "file storage"], ["5 GB", "egress"], ["2", "active projects"]],
+  "docs": [["Supabase docs", "https://supabase.com/docs"], ["Pricing", "https://supabase.com/pricing"]],
+  "keywords": "postgres database rls auth storage realtime edge functions publishable secret key anon service_role"
+}
+-->
+
+<h2 id="overview">What you get</h2>
+<p>Every Supabase project is a dedicated Postgres database with a set of services in front of it: a REST API generated from your tables, an auth server, file storage, realtime messaging and Edge Functions. You talk to all of it through one client library and two API keys.</p>
+<p>The free plan is generous for side projects and early products. The trade-offs to plan around are that projects <strong>pause after a week without activity</strong>, there are <strong>no automatic backups</strong>, and logs are kept for one day.</p>
+
+<table>
+<tr><th>Resource</th><th>Free plan</th></tr>
+<tr><td>Database</td><td>500 MB per project, shared CPU, 500 MB RAM</td></tr>
+<tr><td>Egress</td><td>5 GB, plus 5 GB cached egress</td></tr>
+<tr><td>File storage</td><td>1 GB, max 50 MB per upload</td></tr>
+<tr><td>Auth</td><td>50,000 monthly active users</td></tr>
+<tr><td>Edge Functions</td><td>500,000 invocations a month</td></tr>
+<tr><td>Realtime</td><td>200 concurrent connections, 2 million messages a month</td></tr>
+<tr><td>Projects</td><td>2 active projects (paused ones do not count)</td></tr>
+<tr><td>Backups and logs</td><td>No automatic backups. API and database logs kept 1 day</td></tr>
+</table>
+
+<h2 id="project-and-keys">Create a project and get your keys</h2>
+<ol class="steps">
+<li><b>Create the project</b>In the dashboard choose New project. Pick the region closest to your users or to your backend host. The region cannot be changed later.</li>
+<li><b>Save the database password</b>It is shown once. Put it in a password manager. You only need it for direct Postgres connections.</li>
+<li><b>Copy the URL and keys</b>Open Project Settings, then API Keys. Copy the project URL, the publishable key and, if you have a backend, a secret key.</li>
+</ol>
+
+<p>Supabase now issues two kinds of keys. Choosing the right one is the most important security decision you make.</p>
+<table>
+<tr><th>Key</th><th>Looks like</th><th>Use it in</th><th>What it can do</th></tr>
+<tr><td>Publishable</td><td><code>sb_publishable_...</code></td><td>Browsers, mobile apps, CLIs</td><td>Runs as <code>anon</code> or as the signed-in user. Limited by your RLS policies.</td></tr>
+<tr><td>Secret</td><td><code>sb_secret_...</code></td><td>Servers, bots, cron jobs, Edge Functions</td><td>Runs as <code>service_role</code> and bypasses RLS. Rejected if sent from a browser.</td></tr>
+</table>
+
+<div class="callout warn"><div><b>Legacy keys are being retired</b>Older projects show <code>anon</code> and <code>service_role</code> keys that start with <code>eyJ</code>. They map to the publishable and secret keys and still work, but Supabase is deprecating them by the end of 2026. Create the new keys, switch your apps over, then disable the legacy ones in Settings, API Keys.</div></div>
+
+<h3>Environment variables</h3>
+<p>Use these names so it is obvious which values are safe in the browser. Anything with a public prefix such as <code>NEXT_PUBLIC_</code> or <code>VITE_</code> gets bundled into client code.</p>
+<pre data-file=".env.local" data-lang="sh">
+# Browser safe
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+
+# Server only. Never give this a public prefix.
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SECRET_KEY=sb_secret_xxx
+</pre>
+
+<h2 id="connect">Connect from your app</h2>
+<h3>JavaScript or TypeScript</h3>
+<pre data-lang="sh">
+npm install @supabase/supabase-js
+</pre>
+<pre data-file="lib/supabase.ts" data-lang="ts">
+import { createClient } from '@supabase/supabase-js'
+
+export const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+)
+</pre>
+<p>If you use Next.js with server components or middleware, install <code>@supabase/ssr</code> as well. It stores the session in cookies so the server and browser see the same signed-in user. Follow the official Next.js quickstart for the exact helper files.</p>
+
+<h3>Python (backends and bots)</h3>
+<pre data-lang="sh">
+pip install supabase
+</pre>
+<pre data-file="db.py" data-lang="py">
+import os
+from supabase import create_client
+
+# Server side, so the secret key is fine here
+supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SECRET_KEY"])
+
+rows = supabase.table("notes").select("*").limit(10).execute()
+print(rows.data)
+</pre>
+
+<h2 id="tables-and-rls">Tables and Row Level Security</h2>
+<p>Tables in the <code>public</code> schema are reachable through the API. Row Level Security (RLS) decides which rows each request can see or change. With RLS on and no policies, the publishable key can do nothing, which is the safe default.</p>
+<div class="callout"><div><b>Rule of thumb</b>Turn on RLS for every table in <code>public</code>, then add the smallest policy that makes your feature work. The Security Advisor in the dashboard flags tables that have RLS off.</div></div>
+
+<p>Open the SQL Editor and run this to create a table where each user only sees their own notes:</p>
+<pre data-file="SQL Editor" data-lang="sql">
+create table public.notes (
+  id bigint generated always as identity primary key,
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.notes enable row level security;
+
+create policy "Read own notes" on public.notes
+  for select to authenticated
+  using ( (select auth.uid()) = user_id );
+
+create policy "Insert own notes" on public.notes
+  for insert to authenticated
+  with check ( (select auth.uid()) = user_id );
+
+create policy "Update own notes" on public.notes
+  for update to authenticated
+  using ( (select auth.uid()) = user_id )
+  with check ( (select auth.uid()) = user_id );
+
+create policy "Delete own notes" on public.notes
+  for delete to authenticated
+  using ( (select auth.uid()) = user_id );
+
+-- Policies filter by user_id, so index it
+create index on public.notes (user_id);
+</pre>
+<p>Wrapping <code>auth.uid()</code> in <code>(select ...)</code> lets Postgres run it once per query instead of once per row, which matters as tables grow.</p>
+
+<h3>Public read, owner write</h3>
+<p>For content anyone can read, such as published posts, give <code>anon</code> a select policy and keep writes restricted:</p>
+<pre data-lang="sql">
+create policy "Anyone can read posts" on public.posts
+  for select to anon, authenticated
+  using ( published = true );
+</pre>
+
+<h2 id="queries">Read and write data</h2>
+<pre data-lang="ts">
+// Read with filters, ordering and a limit
+const { data, error } = await supabase
+  .from('notes')
+  .select('id, body, created_at')
+  .order('created_at', { ascending: false })
+  .limit(20)
+
+// Insert and get the new row back
+await supabase.from('notes').insert({ body: 'Hello' }).select().single()
+
+// Update
+await supabase.from('notes').update({ body: 'Edited' }).eq('id', 42)
+
+// Delete
+await supabase.from('notes').delete().eq('id', 42)
+
+// Join a related table through a foreign key
+await supabase.from('posts').select('title, author:profiles(username)')
+</pre>
+<p>Always check <code>error</code>. A query that returns an empty array with no error usually means an RLS policy filtered out the rows, not that the table is empty.</p>
+
+<h3>Generate types</h3>
+<p>With the Supabase CLI you can generate TypeScript types from your schema so queries are checked at compile time:</p>
+<pre data-lang="sh">
+npx supabase login
+npx supabase gen types typescript --project-id your-project-ref > lib/database.types.ts
+</pre>
+
+<h2 id="auth">Authentication</h2>
+<p>Supabase Auth supports email and password, magic links, one-time codes, phone, OAuth providers such as Google and GitHub, and anonymous sign-ins. Users live in the <code>auth.users</code> table, and their id is what <code>auth.uid()</code> returns in your policies.</p>
+<pre data-lang="ts">
+// Sign up. With email confirmation on, the user must click the link first.
+await supabase.auth.signUp({ email, password })
+
+// Sign in
+await supabase.auth.signInWithPassword({ email, password })
+
+// Passwordless magic link
+await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: 'https://example.com/welcome' } })
+
+// OAuth (configure the provider in Authentication, Providers first)
+await supabase.auth.signInWithOAuth({ provider: 'github' })
+
+// Current user, verified with the auth server
+const { data: { user } } = await supabase.auth.getUser()
+
+// React to sign in and sign out
+supabase.auth.onAuthStateChange((event, session) => { /* update UI */ })
+
+await supabase.auth.signOut()
+</pre>
+
+<div class="callout warn"><div><b>On the server, trust getUser, not getSession</b>A session read from cookies can be tampered with. On the server, call <code>getUser()</code> (or <code>getClaims()</code>) to verify the token before you use the user id for anything that matters.</div></div>
+
+<h3>Redirect URLs and email</h3>
+<ul>
+<li>In Authentication, URL Configuration, set the Site URL to your production domain and add your local and preview URLs to the redirect allow list. Magic links and OAuth fail with a redirect error when this is missing.</li>
+<li>The built-in email sender is rate limited and meant for testing. For real users, add your own SMTP provider (for example Resend) in Authentication, Emails.</li>
+</ul>
+
+<h2 id="storage">File storage</h2>
+<p>Storage keeps files in buckets. Public buckets serve files from a plain URL. Private buckets need a signed URL or an authenticated request. Access is controlled with RLS policies on the <code>storage.objects</code> table.</p>
+<ol class="steps">
+<li><b>Create a bucket</b>Storage, New bucket. Name it, for example, <code>avatars</code>, and decide whether it is public. You can also set a file size limit and allowed MIME types.</li>
+<li><b>Add policies</b>Without policies, uploads from the browser are refused. The example below lets users write only inside a folder named after their user id.</li>
+<li><b>Upload and serve</b>Use the client to upload, then get a public URL or a signed URL.</li>
+</ol>
+<pre data-lang="sql">
+create policy "Users upload to own folder" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+</pre>
+<pre data-lang="ts">
+const path = `${user.id}/avatar.png`
+await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+
+// Public bucket
+const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+
+// Private bucket: link valid for one hour
+const { data: signed } = await supabase.storage.from('docs').createSignedUrl('report.pdf', 3600)
+</pre>
+
+<h2 id="realtime">Realtime</h2>
+<p>Realtime has three features. Pick the one that matches what you are syncing.</p>
+<table>
+<tr><th>Feature</th><th>Use it for</th></tr>
+<tr><td>Postgres Changes</td><td>Listening to inserts, updates and deletes on a table</td></tr>
+<tr><td>Broadcast</td><td>Low-latency messages between clients, such as cursors or typing indicators. Also the recommended way to fan out database changes at scale.</td></tr>
+<tr><td>Presence</td><td>Tracking who is online in a room</td></tr>
+</table>
+<p>Postgres Changes only fire for tables in the <code>supabase_realtime</code> publication, and RLS still applies to what each subscriber receives:</p>
+<pre data-lang="sql">
+alter publication supabase_realtime add table public.notes;
+</pre>
+<pre data-lang="ts">
+const channel = supabase
+  .channel('notes-feed')
+  .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'notes' },
+      (payload) => console.log('new note', payload.new))
+  .subscribe()
+
+// Clean up when the component unmounts
+supabase.removeChannel(channel)
+</pre>
+<p>Each change is checked against every subscriber's policies, so Postgres Changes slows down with many listeners. Past a few thousand concurrent subscribers on the same table, Supabase recommends Broadcast instead.</p>
+
+<h2 id="edge-functions">Edge Functions</h2>
+<p>Edge Functions are TypeScript functions that run on Deno, close to your users. They are a good fit for webhooks, calling third-party APIs with secret keys, and small backend jobs. The free plan includes 500,000 invocations a month.</p>
+<pre data-lang="sh">
+npx supabase init
+npx supabase functions new hello
+npx supabase functions serve          # run locally
+npx supabase secrets set STRIPE_KEY=sk_test_xxx
+npx supabase functions deploy hello
+</pre>
+<pre data-file="supabase/functions/hello/index.ts" data-lang="ts">
+Deno.serve(async (req) => {
+  const { name } = await req.json()
+  return new Response(JSON.stringify({ message: `Hello ${name}` }), {
+    headers: { 'Content-Type': 'application/json' },
+  })
+})
+</pre>
+<pre data-lang="ts">
+// Call it from the client. The user's token is sent automatically.
+const { data, error } = await supabase.functions.invoke('hello', { body: { name: 'Ada' } })
+</pre>
+<p>By default a function requires a valid JWT. For public webhooks, such as one from Telegram or Stripe, deploy with <code>--no-verify-jwt</code> and verify the sender's signature yourself.</p>
+
+<h2 id="pausing">Pausing and backups</h2>
+<p>Free projects pause after about a week with no activity. A paused project keeps its data, and you can restore it from the dashboard with one click for up to a year. Paused projects do not count toward the two-project limit.</p>
+<ul>
+<li><strong>Prevent the pause</strong> with a small scheduled request that actually reads from the database. The <a href="keepalive-guide.html#supabase">keep-alive guide</a> has a ready-made GitHub Actions workflow.</li>
+<li><strong>Back up yourself.</strong> The free plan has no automatic backups. Run <code>npx supabase db dump -f backup.sql</code> on a schedule, or before any risky migration.</li>
+</ul>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+<details><summary>My query returns an empty array but the table has rows</summary><div><p>RLS is filtering them out. Check that a select policy exists for the role making the request (<code>anon</code> or <code>authenticated</code>) and that the user is actually signed in when you expect them to be.</p></div></details>
+<details><summary>"new row violates row-level security policy"</summary><div><p>Your insert or update is missing a policy, or the <code>with check</code> condition is false. The common cause is not sending <code>user_id</code> and not giving the column a <code>default auth.uid()</code>.</p></div></details>
+<details><summary>Magic link or OAuth redirects to localhost in production</summary><div><p>Set the Site URL and redirect URLs in Authentication, URL Configuration, and pass <code>emailRedirectTo</code> or <code>redirectTo</code> explicitly.</p></div></details>
+<details><summary>Sign-up emails stop arriving</summary><div><p>The default email service has a low hourly limit. Configure custom SMTP for anything beyond testing.</p></div></details>
+<details><summary>Realtime subscription connects but no events arrive</summary><div><p>The table is not in the <code>supabase_realtime</code> publication, or RLS blocks the subscriber from seeing the row.</p></div></details>
+<details><summary>Connection errors from a serverless function</summary><div><p>Prefer the HTTP client (<code>supabase-js</code>) in serverless code. If you need a direct Postgres connection, use the pooler connection string from the Connect panel, not the direct one.</p></div></details>

@@ -1,0 +1,115 @@
+<!--meta
+{
+  "title": "Overview",
+  "group": "Start here",
+  "description": "Plain, up-to-date guides to building and deploying real apps on free tiers: Vercel, Supabase, Render, Cloudflare, GitHub, Git and Telegram bots."
+}
+-->
+
+<section class="hero">
+  <span class="eyebrow">Checked against official docs, November 2026</span>
+  <h1>Ship real apps on free tiers</h1>
+  <p class="lede">Plain guides to hosting, databases and bots for solo builders. Each one starts from an empty account and ends with something deployed, with the limits spelled out so nothing surprises you later.</p>
+
+  <div class="ask">
+    <p class="ask-q">What are you building?</p>
+    <div class="ask-opts">
+      <button type="button" aria-pressed="false" aria-controls="r-web">A web app</button>
+      <button type="button" aria-pressed="false" aria-controls="r-bot">A Telegram bot</button>
+      <button type="button" aria-pressed="false" aria-controls="r-api">An API with a database</button>
+      <button type="button" aria-pressed="false" aria-controls="r-static">A static site</button>
+    </div>
+    <div class="recipe" id="r-web">
+      <p>Frontend and serverless functions on Vercel, data and login on Supabase.</p>
+      <ol>
+        <li>Put the code on GitHub with the <a href="git-guide.html">Git guide</a>.</li>
+        <li>Create a project, a table and RLS policies with the <a href="supabase-guide.html">Supabase guide</a>.</li>
+        <li>Deploy and add environment variables with the <a href="vercel-guide.html">Vercel guide</a>.</li>
+        <li>Optional: add your domain using the <a href="cloudflare-guide.html#with-vercel-and-render">Cloudflare guide</a>.</li>
+      </ol>
+    </div>
+    <div class="recipe" id="r-bot">
+      <p>A Python webhook bot on Render, with users stored in Supabase.</p>
+      <ol>
+        <li>Create the bot and run it locally with the <a href="telegram-bot-guide.html">Telegram bots guide</a>.</li>
+        <li>Deploy it as a webhook with the <a href="render-guide.html">Render guide</a>.</li>
+        <li>Store users in <a href="supabase-guide.html">Supabase</a>.</li>
+        <li>Make replies instant with the <a href="keepalive-guide.html">keep-alive guide</a>.</li>
+      </ol>
+    </div>
+    <div class="recipe" id="r-api">
+      <p>A Python or Node API on Render, Postgres on Supabase, tests on GitHub Actions.</p>
+      <ol>
+        <li>Create the database with the <a href="supabase-guide.html">Supabase guide</a>.</li>
+        <li>Deploy the API with the <a href="render-guide.html">Render guide</a>.</li>
+        <li>Run tests before each deploy with <a href="github-guide.html#actions">GitHub Actions</a>.</li>
+        <li>Stop cold starts and pauses with the <a href="keepalive-guide.html">keep-alive guide</a>.</li>
+      </ol>
+    </div>
+    <div class="recipe" id="r-static">
+      <p>No server at all. Pick whichever host you like.</p>
+      <ol>
+        <li>Plain HTML: publish from a repository with <a href="github-guide.html#pages">GitHub Pages</a>.</li>
+        <li>A built site (Vite, Astro): deploy on <a href="vercel-guide.html">Vercel</a> or as <a href="cloudflare-guide.html#workers">Workers static assets</a>.</li>
+        <li>Add a custom domain with the <a href="cloudflare-guide.html#dns">Cloudflare guide</a>.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<div class="section-head"><h2 id="guides">Guides</h2><p>Read them in any order. The sidebar and search work on every page.</p></div>
+<div class="cards">
+  <a class="card" href="vercel-guide.html"><div class="card-top"><span class="card-title">Vercel</span><span class="card-meta">15 min</span></div><p>Frontend hosting, functions, previews, cron jobs and custom domains.</p><div class="tags"><span class="tag">100 GB transfer</span><span class="tag">1M invocations</span></div></a>
+  <a class="card" href="supabase-guide.html"><div class="card-top"><span class="card-title">Supabase</span><span class="card-meta">18 min</span></div><p>Postgres, Row Level Security, auth, storage, realtime and Edge Functions.</p><div class="tags"><span class="tag">500 MB database</span><span class="tag">50k users</span></div></a>
+  <a class="card" href="render-guide.html"><div class="card-top"><span class="card-title">Render</span><span class="card-meta">14 min</span></div><p>Run a Python or Node backend, handle spin-down and deploy from a Blueprint.</p><div class="tags"><span class="tag">750 hours</span><span class="tag">Sleeps after 15 min</span></div></a>
+  <a class="card" href="cloudflare-guide.html"><div class="card-top"><span class="card-title">Cloudflare</span><span class="card-meta">15 min</span></div><p>DNS, proxy and SSL modes, Workers and R2 storage with free egress.</p><div class="tags"><span class="tag">100k requests a day</span><span class="tag">10 GB R2</span></div></a>
+  <a class="card" href="git-guide.html"><div class="card-top"><span class="card-title">Git</span><span class="card-meta">16 min</span></div><p>Setup, branches, merge and rebase, undoing mistakes and reading history.</p><div class="tags"><span class="tag">switch and restore</span><span class="tag">reflog</span></div></a>
+  <a class="card" href="github-guide.html"><div class="card-top"><span class="card-title">GitHub</span><span class="card-meta">15 min</span></div><p>Pull requests, Actions CI, secrets, scheduled jobs, Pages and rulesets.</p><div class="tags"><span class="tag">Free on public repos</span></div></a>
+  <a class="card" href="keepalive-guide.html"><div class="card-top"><span class="card-title">Keep-alive</span><span class="card-meta">10 min</span></div><p>Keep one Render service awake and stop Supabase from pausing, within the rules.</p><div class="tags"><span class="tag">UptimeRobot</span><span class="tag">cron-job.org</span></div></a>
+  <a class="card" href="telegram-bot-guide.html"><div class="card-top"><span class="card-title">Telegram bots</span><span class="card-meta">18 min</span></div><p>python-telegram-bot v22, a FastAPI webhook on Render, security and Supabase.</p><div class="tags"><span class="tag">Webhook</span><span class="tag">Python</span></div></a>
+</div>
+
+<div class="section-head"><h2 id="how-it-connects">How it fits together</h2><p>A typical free setup. Each box opens its guide.</p></div>
+<div class="flow">
+  <a href="github-guide.html">GitHub</a><em>deploys to</em>
+  <a href="vercel-guide.html">Vercel</a><em>calls</em>
+  <a href="render-guide.html">Render API</a><em>reads and writes</em>
+  <a href="supabase-guide.html">Supabase</a>
+</div>
+<div class="flow" style="margin-top:16px">
+  <a href="cloudflare-guide.html">Cloudflare DNS</a><em>points your domain at</em>
+  <a href="vercel-guide.html">Vercel</a><em>and</em>
+  <a href="render-guide.html">Render</a><em>kept awake by</em>
+  <a href="keepalive-guide.html">a pinger</a>
+</div>
+
+<div class="section-head"><h2 id="limits">Free limits at a glance</h2><p>The numbers that matter most. Each guide has the full table and links to the official source.</p></div>
+<div class="prose">
+<table>
+<tr><th>Service</th><th>Main free limits</th><th>Watch out for</th></tr>
+<tr><td><a href="vercel-guide.html">Vercel Hobby</a></td><td>100 GB transfer, 1M function invocations, 4 hours active CPU a month</td><td>Non-commercial use only. Crons run once a day at most.</td></tr>
+<tr><td><a href="supabase-guide.html">Supabase Free</a></td><td>500 MB database, 1 GB storage, 5 GB egress, 50k monthly users</td><td>Pauses after 7 idle days. No automatic backups.</td></tr>
+<tr><td><a href="render-guide.html">Render Free</a></td><td>750 instance hours a month per workspace</td><td>Sleeps after 15 min. Disk is wiped on restart. Free Postgres expires in 30 days.</td></tr>
+<tr><td><a href="cloudflare-guide.html">Cloudflare Free</a></td><td>Workers 100k requests a day, R2 10 GB with free egress</td><td>10 ms CPU per Worker request.</td></tr>
+<tr><td><a href="github-guide.html">GitHub Free</a></td><td>Unlimited repos, free Actions on public repos</td><td>Schedules disabled after 60 idle days in public repos.</td></tr>
+<tr><td><a href="keepalive-guide.html">UptimeRobot Free</a></td><td>50 monitors every 5 minutes</td><td>Keep only one Render service awake.</td></tr>
+</table>
+</div>
+
+<div class="section-head"><h2 id="more-tools">More free tools worth knowing</h2><p>Not covered by a full guide yet. Check each pricing page for current limits.</p></div>
+<div class="tools">
+  <div><a href="https://resend.com"><b>Resend</b></a><span>Email API for sign-up, reset and notification emails. Works as custom SMTP for Supabase Auth.</span></div>
+  <div><a href="https://sentry.io"><b>Sentry</b></a><span>Error tracking for frontend and backend, with stack traces and alerts.</span></div>
+  <div><a href="https://clerk.com"><b>Clerk</b></a><span>Hosted auth with ready-made sign-in UI, an alternative to Supabase Auth.</span></div>
+  <div><a href="https://umami.is"><b>Umami</b></a><span>Privacy-friendly, cookie-free analytics you can self-host.</span></div>
+  <div><a href="https://www.cloudflare.com/application-services/products/turnstile/"><b>Cloudflare Turnstile</b></a><span>A free CAPTCHA replacement for forms.</span></div>
+  <div><a href="https://onesignal.com"><b>OneSignal</b></a><span>Web and mobile push notifications.</span></div>
+</div>
+
+<div class="section-head"><h2 id="built-with">Built with this stack</h2><p>Real projects running on the setups these guides describe.</p></div>
+<div class="cards">
+  <div class="card"><div class="card-top"><span class="card-title">WarpConfGen</span><span class="card-meta">Vercel</span></div><p>A Telegram bot that generates Warp and WireGuard configuration files on demand.</p><div class="tags"><a class="tag" href="https://t.me/warpgen_robot">Open bot</a><a class="tag" href="https://github.com/devtint/WarpConfGen">Source</a></div></div>
+  <div class="card"><div class="card-top"><span class="card-title">TikTok Downloader</span><span class="card-meta">Render</span></div><p>A webhook bot that downloads TikTok videos without a watermark, straight in Telegram.</p><div class="tags"><a class="tag" href="https://t.me/tiktokvideodownload_robot">Open bot</a><a class="tag" href="https://github.com/devtint/TelegramtiktokDownloader">Source</a></div></div>
+  <div class="card"><div class="card-top"><span class="card-title">AutoShortVideo</span><span class="card-meta">Render and Supabase</span></div><p>A 24/7 pipeline that creates short videos and posts them to YouTube Shorts and Telegram.</p><div class="tags"><a class="tag" href="https://github.com/devtint/AutoShortVideo">Source</a></div></div>
+  <div class="card"><div class="card-top"><span class="card-title">devtint</span><span class="card-meta">Author</span></div><p>Solo builder in Bangkok making automation tools, security dashboards and Telegram bots on free tiers.</p><div class="tags"><a class="tag" href="https://github.com/devtint">GitHub</a><a class="tag" href="https://t.me/BadCodeWriter">Telegram</a><a class="tag" href="https://tintnaingwin.vercel.app">Website</a></div></div>
+</div>

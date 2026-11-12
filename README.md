@@ -1,70 +1,68 @@
-# 🆓 Free Stack
+# Free Stack
 
-A visual reference suite for building production-ready apps without spending a dollar. Minimal, dark, mobile-friendly guides for solo builders.
+Plain, up-to-date guides to building and deploying real apps on free tiers. Written for solo builders, checked against each product's official documentation.
 
-## Live Site
-> **https://devtint.github.io/free-stack**
+**Live site:** https://devtint.github.io/free-stack
 
----
+## Guides
 
-## What's Inside
+| Guide | Covers |
+|-------|--------|
+| [Vercel](vercel-guide.html) | Git deploys, CLI, preview and production, env vars, functions, cron jobs, domains, Hobby limits |
+| [Supabase](supabase-guide.html) | Publishable and secret keys, tables and RLS, queries, auth, storage, realtime, Edge Functions, pausing |
+| [Render](render-guide.html) | Web services, start commands, ports, env vars, health checks, spin-down, render.yaml, deploy hooks |
+| [Cloudflare](cloudflare-guide.html) | DNS, proxy and SSL modes, using it with Vercel and Render, Workers, R2 storage |
+| [Git](git-guide.html) | Setup, SSH keys, daily cycle, branches, merge and rebase, undo, history, .gitignore |
+| [GitHub](github-guide.html) | Pull requests, Actions CI, secrets, scheduled workflows, Pages, rulesets, Dependabot |
+| [Keep-alive](keepalive-guide.html) | Health endpoints, UptimeRobot, cron-job.org, GitHub Actions, stopping Supabase pauses |
+| [Telegram bots](telegram-bot-guide.html) | python-telegram-bot v22, polling vs webhooks, FastAPI webhook on Render, security, Supabase, rate limits |
 
-### `index.html` — Service Overview
-A single-page reference covering the best free-tier services:
+Every guide lists the free plan limits, links to the official sources, and ends with a troubleshooting section.
 
-| Service | What For |
-|---------|----------|
-| Vercel | Frontend hosting & CDN |
-| Supabase | Postgres DB, Auth, Storage, Realtime |
-| Render | Backend API & Telegram Bot hosting |
-| GitHub | Source control, CI/CD, Pages |
-| Cloudflare | DNS, CDN, Workers, R2 Storage |
-| UptimeRobot / cron-job.org | Keep-alive pings |
-| Resend | Transactional email |
-| Clerk | Auth with social login & MFA |
-| Sentry | Error tracking |
-| OneSignal | Push notifications |
-| Umami | Self-hosted analytics |
+## Editing the site
 
----
+The published pages are static HTML generated from the files in `_src/`.
 
-### Reference Guides
+```
+_src/<page>.html      article content for each page (edit these)
+assets/site.css       design system: colors, type, components, light and dark themes
+assets/site.js        theme toggle, search, copy buttons, highlighting, mobile menu
+build.py              wraps content in the shared layout and writes the root .html files
+```
 
-8 in-depth CLI & platform guides with real-world examples, syntax-highlighted terminals, and mobile-friendly layout:
+After editing anything in `_src/` or the navigation in `build.py`, rebuild:
 
-| File | What's Covered |
-|------|----------------|
-| `git-guide.html` | Git CLI: setup, daily workflow, branching, undo/fix, history, .gitignore — with real examples |
-| `github-guide.html` | Repos, Actions CI/CD, Secrets, Pages, branch protection |
-| `render-guide.html` | Web services, keep-alive, webhooks, render.yaml |
-| `supabase-guide.html` | Database, Auth, Storage, Realtime |
-| `vercel-guide.html` | Deploy, Env Vars, Serverless Functions, Custom Domains |
-| `cloudflare-guide.html` | DNS, Workers, R2 storage, proxy setup |
-| `keepalive-guide.html` | UptimeRobot, cron-job.org, Supabase anti-pause strategies |
-| `telegram-bot-guide.html` | Build & deploy Telegram bots on Render |
+```
+python3 build.py
+```
 
----
+Then commit both the source and the generated files. No dependencies are needed beyond Python 3.
 
-### Design System
-- Dark terminal aesthetic — `JetBrains Mono` + `Syne` fonts
-- Syntax-highlighted code blocks with `white-space: pre` on desktop, `pre-wrap` on mobile
-- Uniform TOC item height via `grid-auto-rows: 68px` (resets to `auto` on mobile)
-- Educational top-bar attribution on every page
-- Fully mobile-responsive at `640px` breakpoint
+### Content shorthand
 
----
+Inside `_src` files you can use these building blocks:
 
-## Made With This Stack
+- `<ol class="steps"><li><b>Title</b>Text</li></ol>` for numbered step cards
+- `<div class="callout">`, `callout warn` or `callout tip` for notes
+- `<pre data-file="name" data-lang="py">raw code</pre>` for code blocks (write code unescaped; languages: js, ts, py, sql, sh, yaml, json)
+- `<details><summary>Question</summary><div>Answer</div></details>` for troubleshooting entries
+- Plain `<table>` elements, which become cards on phones automatically
 
-| Bot | Handle | Hosting | Source |
-|-----|--------|---------|--------|
-| WarpConfGen | [@warpgen\_robot](https://t.me/warpgen_robot) | Vercel | [GitHub](https://github.com/devtint/WarpConfGen) |
-| TikTok Downloader | [@tiktokvideodownload\_robot](https://t.me/tiktokvideodownload_robot) | Render | [GitHub](https://github.com/devtint/TelegramtiktokDownloader) |
+## Design
+
+Light by default with an optional dark mode. Warm ivory surfaces, Source Serif 4 for reading, Inter for interface text, JetBrains Mono for code, and a single terracotta accent. Nothing smaller than 14px, generous spacing, and layouts that work down to phone width.
+
+## Built with this stack
+
+| Project | Hosting | Source |
+|---------|---------|--------|
+| WarpConfGen ([@warpgen_robot](https://t.me/warpgen_robot)) | Vercel | [GitHub](https://github.com/devtint/WarpConfGen) |
+| TikTok Downloader ([@tiktokvideodownload_robot](https://t.me/tiktokvideodownload_robot)) | Render | [GitHub](https://github.com/devtint/TelegramtiktokDownloader) |
 
 ---
 
-**Built by:** [devtint (Tyrell)](https://github.com/devtint) · [@BadCodeWriter](https://t.me/BadCodeWriter)  
-Created for educational purposes — not affiliated with any of the services referenced.
+Made by [devtint](https://github.com/devtint) ([Telegram](https://t.me/BadCodeWriter)). An independent educational reference, not affiliated with any service mentioned.
 
 ## License
+
 MIT

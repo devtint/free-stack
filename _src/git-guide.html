@@ -1,0 +1,213 @@
+<!--meta
+{
+  "title": "Git",
+  "group": "Workflow",
+  "minutes": 16,
+  "description": "A practical Git guide: setup, SSH keys, the daily commit cycle, branches, merge and rebase, undoing mistakes, history and .gitignore.",
+  "lede": "The commands you actually use, explained with what they do to your files. From first-time setup to recovering a commit you thought was gone.",
+  "chips": [["git switch", "for branches"], ["git restore", "for files"], ["reflog", "your safety net"]],
+  "docs": [["Git reference", "https://git-scm.com/docs"], ["Pro Git book", "https://git-scm.com/book/en/v2"]],
+  "keywords": "commit push pull branch merge rebase stash reset revert amend cherry-pick reflog log diff blame gitignore ssh key"
+}
+-->
+
+<h2 id="mental-model">How Git thinks</h2>
+<p>Git tracks your project in three places. Most commands move changes from one to the next:</p>
+<table>
+<tr><th>Place</th><th>What it holds</th><th>Moved by</th></tr>
+<tr><td>Working tree</td><td>The files on your disk, including unsaved experiments</td><td>You, editing files</td></tr>
+<tr><td>Staging area</td><td>The exact changes that will go into the next commit</td><td><code>git add</code></td></tr>
+<tr><td>Repository</td><td>Every commit, forever (until garbage collected)</td><td><code>git commit</code></td></tr>
+</table>
+<p>A remote, usually GitHub, is another copy of the repository. <code>git push</code> sends your commits there and <code>git pull</code> brings others' commits back.</p>
+
+<h2 id="setup">First-time setup</h2>
+<pre data-lang="sh">
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+git config --global init.defaultBranch main
+git config --global pull.rebase true     # keep history linear when pulling
+git config --global core.editor "code --wait"
+
+git config --list --show-origin          # see where each setting comes from
+</pre>
+<p>Use the email address attached to your GitHub account, or GitHub's private <code>noreply</code> address from Settings, Emails, so commits link to your profile.</p>
+
+<h3>SSH key for GitHub</h3>
+<ol class="steps">
+<li><b>Create a key</b>
+<pre data-lang="sh">
+ssh-keygen -t ed25519 -C "you@example.com"
+</pre>
+Press Enter to accept the default location, and set a passphrase.</li>
+<li><b>Add it to the agent</b>
+<pre data-lang="sh">
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519
+</pre></li>
+<li><b>Add the public key to GitHub</b>Copy the contents of <code>~/.ssh/id_ed25519.pub</code> into GitHub, Settings, SSH and GPG keys, New SSH key.</li>
+<li><b>Test it</b>
+<pre data-lang="sh">
+ssh -T git@github.com
+</pre>
+You should see a greeting with your username.</li>
+</ol>
+
+<h2 id="daily-cycle">The daily cycle</h2>
+<pre data-lang="sh">
+git status                 # what changed?
+git diff                   # line by line, not yet staged
+git add src/app.py         # stage one file
+git add -p                 # stage piece by piece, interactively
+git commit -m "Add login rate limit"
+git push
+</pre>
+<p><code>git add -p</code> is worth learning early. It shows each change and asks whether to stage it, so one commit holds one idea.</p>
+
+<h3>Start or join a project</h3>
+<pre data-lang="sh">
+# New project
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin git@github.com:you/project.git
+git push -u origin main
+
+# Existing project
+git clone git@github.com:you/project.git
+</pre>
+
+<h3>Write useful commit messages</h3>
+<ul>
+<li>Use the imperative mood: "Fix token refresh", not "Fixed" or "Fixes".</li>
+<li>Keep the first line under about 70 characters. Add a blank line and a longer explanation if the why is not obvious.</li>
+<li>Many teams use prefixes such as <code>feat:</code>, <code>fix:</code> and <code>docs:</code> (Conventional Commits), which tools can turn into changelogs.</li>
+</ul>
+
+<h2 id="branches">Branches</h2>
+<p>A branch is a movable label pointing at a commit. Creating one is instant and costs nothing, so make one for every change.</p>
+<pre data-lang="sh">
+git switch -c feature/search     # create and switch
+git switch main                  # go back
+git branch                       # list local branches
+git branch -d feature/search     # delete after merging
+git push -u origin feature/search
+</pre>
+<p><code>git switch</code> and <code>git restore</code> replaced the overloaded <code>git checkout</code> for everyday use. <code>checkout</code> still works, but the new commands are harder to misuse.</p>
+
+<h3>Merge or rebase</h3>
+<table>
+<tr><th></th><th>Merge</th><th>Rebase</th></tr>
+<tr><td>What it does</td><td>Joins two histories with a merge commit</td><td>Replays your commits on top of another branch</td></tr>
+<tr><td>History</td><td>True record of what happened, can look busy</td><td>Straight line, easy to read</td></tr>
+<tr><td>Safe on shared branches</td><td>Yes</td><td>Only on branches no one else uses</td></tr>
+</table>
+<pre data-lang="sh">
+# Merge main's latest work into your branch
+git switch feature/search
+git merge main
+
+# Or rebase your branch onto main
+git fetch origin
+git rebase origin/main
+# fix conflicts, then:
+git add .
+git rebase --continue
+# after rebasing a branch you already pushed:
+git push --force-with-lease
+</pre>
+<div class="callout"><div><b>Prefer --force-with-lease</b>It refuses to overwrite the remote if someone pushed commits you have not seen, where plain <code>--force</code> would silently delete them.</div></div>
+
+<h3>Resolve a conflict</h3>
+<ol class="steps">
+<li><b>Open the file</b>Git marks the clash between <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code>, <code>=======</code> and <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>.</li>
+<li><b>Edit to the final version</b>Keep one side, the other, or a mix. Delete the markers.</li>
+<li><b>Mark it resolved</b><code>git add</code> the file, then <code>git commit</code> (for a merge) or <code>git rebase --continue</code>. To give up, use <code>git merge --abort</code> or <code>git rebase --abort</code>.</li>
+</ol>
+
+<h2 id="undo">Undo and fix</h2>
+<p>Pick the command by where the mistake is:</p>
+<table>
+<tr><th>Situation</th><th>Command</th></tr>
+<tr><td>Discard edits to a file</td><td><code>git restore app.py</code></td></tr>
+<tr><td>Unstage a file, keep the edits</td><td><code>git restore --staged app.py</code></td></tr>
+<tr><td>Fix the last commit's message or add a forgotten file</td><td><code>git commit --amend</code></td></tr>
+<tr><td>Undo the last commit, keep the changes staged</td><td><code>git reset --soft HEAD~1</code></td></tr>
+<tr><td>Undo the last commit and its changes completely</td><td><code>git reset --hard HEAD~1</code></td></tr>
+<tr><td>Undo a commit that is already pushed</td><td><code>git revert &lt;commit&gt;</code></td></tr>
+<tr><td>Copy one commit from another branch</td><td><code>git cherry-pick &lt;commit&gt;</code></td></tr>
+</table>
+<div class="callout warn"><div><b>Only rewrite unpushed history</b><code>amend</code> and <code>reset</code> change existing commits. On a branch others have pulled, use <code>revert</code>, which adds a new commit that undoes the old one.</div></div>
+
+<h3>Stash: park work for later</h3>
+<pre data-lang="sh">
+git stash push -m "half-done search"   # save and clean the working tree
+git stash list
+git stash pop                          # bring the latest back
+git stash push --include-untracked     # also stash new files
+</pre>
+
+<h3>Reflog: find "lost" commits</h3>
+<p>Git records every place <code>HEAD</code> has pointed for about 90 days. After a bad reset or rebase, the old commit is almost always still there:</p>
+<pre data-lang="sh">
+git reflog
+# a1b2c3d HEAD@{2}: commit: Add search endpoint
+git switch -c rescue a1b2c3d
+</pre>
+
+<h2 id="history">Read the history</h2>
+<pre data-lang="sh">
+git log --oneline --graph --all     # compact picture of every branch
+git log -p app.py                   # every change to one file
+git log --since="2 weeks ago" --author="Ada"
+git log -S "API_KEY"                # commits that added or removed this text
+git show a1b2c3d                    # one commit in full
+git diff main...feature/search      # what the branch adds
+git blame -L 10,30 app.py           # who last changed lines 10 to 30
+</pre>
+
+<h2 id="gitignore">.gitignore</h2>
+<p>List files Git should never track: dependencies, build output, logs and secrets.</p>
+<table>
+<tr><th>Pattern</th><th>Matches</th></tr>
+<tr><td><code>.env</code></td><td>Any file named <code>.env</code>, in any folder</td></tr>
+<tr><td><code>/build</code></td><td>Only the <code>build</code> folder at the root</td></tr>
+<tr><td><code>logs/</code></td><td>Any folder named <code>logs</code></td></tr>
+<tr><td><code>*.log</code></td><td>Any file ending in <code>.log</code></td></tr>
+<tr><td><code>!.env.example</code></td><td>Exception: track this file even though a rule above matches it</td></tr>
+</table>
+<pre data-file=".gitignore" data-lang="sh">
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+dist/
+.next/
+
+# Python
+__pycache__/
+.venv/
+*.pyc
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+</pre>
+
+<h3>Already committed something you should not have?</h3>
+<pre data-lang="sh">
+git rm --cached .env      # stop tracking, keep the file on disk
+echo ".env" >> .gitignore
+git commit -m "Stop tracking .env"
+</pre>
+<div class="callout warn"><div><b>A pushed secret is a leaked secret</b>Removing the file does not remove it from history, and bots scan GitHub within minutes. Rotate the key at the provider first, then clean up.</div></div>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+<details><summary>"Updates were rejected because the remote contains work that you do not have"</summary><div><p>Someone pushed first. Run <code>git pull</code> (with <code>pull.rebase true</code> this rebases your commits on top), fix any conflicts, then push again.</p></div></details>
+<details><summary>"Permission denied (publickey)"</summary><div><p>Your SSH key is not loaded or not added to GitHub. Run <code>ssh-add -l</code> to check, and <code>ssh -T git@github.com</code> to test.</p></div></details>
+<details><summary>I committed to main instead of a branch</summary><div><p>Create the branch where you are, then move main back: <code>git branch feature/x</code>, <code>git reset --hard origin/main</code>, <code>git switch feature/x</code>. Only do this if you have not pushed main.</p></div></details>
+<details><summary>"detached HEAD"</summary><div><p>You checked out a commit rather than a branch. If you made commits there, keep them with <code>git switch -c new-branch</code>.</p></div></details>

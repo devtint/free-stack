@@ -1,0 +1,179 @@
+<!--meta
+{
+  "title": "Cloudflare",
+  "group": "Hosting",
+  "minutes": 15,
+  "description": "Use Cloudflare's free plan for DNS, proxying, SSL, Workers and R2 storage, and connect it correctly to Vercel and Render.",
+  "lede": "Fast DNS, a free CDN in front of your site, serverless Workers and object storage with no egress fees. This guide shows how to set each one up and how to avoid the classic redirect loop.",
+  "chips": [["100,000", "Worker requests a day"], ["10 ms", "CPU per request"], ["10 GB", "R2 storage"], ["$0", "R2 egress"]],
+  "docs": [["Cloudflare docs", "https://developers.cloudflare.com"], ["Workers limits", "https://developers.cloudflare.com/workers/platform/limits/"]],
+  "keywords": "dns nameservers proxy orange cloud ssl full strict workers wrangler r2 bucket s3 boto3 redirect loop"
+}
+-->
+
+<h2 id="overview">What you get</h2>
+<p>Cloudflare's free plan covers four things most small projects need:</p>
+<ul>
+<li><strong>DNS</strong> for your domain, with a fast global network and a clean dashboard.</li>
+<li><strong>Proxy and CDN.</strong> Proxied records hide your origin, cache static files and add DDoS protection.</li>
+<li><strong>Workers</strong>, serverless functions that run in every Cloudflare location and can also serve static sites.</li>
+<li><strong>R2</strong>, S3-compatible object storage with no charge for downloads.</li>
+</ul>
+<table>
+<tr><th>Product</th><th>Free plan</th></tr>
+<tr><td>Workers requests</td><td>100,000 a day, reset at midnight UTC</td></tr>
+<tr><td>Workers CPU time</td><td>10 ms per request (waiting on network does not count)</td></tr>
+<tr><td>Workers memory</td><td>128 MB</td></tr>
+<tr><td>Subrequests</td><td>50 per request</td></tr>
+<tr><td>Cron Triggers</td><td>5 per account</td></tr>
+<tr><td>R2 storage</td><td>10 GB-month</td></tr>
+<tr><td>R2 operations</td><td>1 million Class A (writes, lists) and 10 million Class B (reads) a month</td></tr>
+<tr><td>R2 egress</td><td>Free</td></tr>
+</table>
+
+<h2 id="dns">Move your DNS to Cloudflare</h2>
+<ol class="steps">
+<li><b>Add your domain</b>In the dashboard, choose Add a domain and pick the Free plan. Cloudflare scans your existing records.</li>
+<li><b>Check the imported records</b>Compare them with your current DNS provider. Scans miss things, especially mail records (MX, SPF, DKIM).</li>
+<li><b>Change the nameservers</b>At your registrar, replace the nameservers with the two Cloudflare shows you. Turn off DNSSEC at the registrar first if it is on.</li>
+<li><b>Wait for activation</b>Usually under an hour, sometimes up to a day. Cloudflare emails you when the domain is active.</li>
+</ol>
+
+<h3>Record types you will use</h3>
+<table>
+<tr><th>Type</th><th>Points to</th><th>Typical use</th></tr>
+<tr><td>A</td><td>An IPv4 address</td><td>Apex domain to a server</td></tr>
+<tr><td>AAAA</td><td>An IPv6 address</td><td>Same, for IPv6</td></tr>
+<tr><td>CNAME</td><td>Another hostname</td><td><code>www</code> or <code>api</code> to a host like <code>my-api.onrender.com</code></td></tr>
+<tr><td>MX</td><td>Mail server</td><td>Receiving email</td></tr>
+<tr><td>TXT</td><td>Text</td><td>Domain verification, SPF, DKIM, DMARC</td></tr>
+</table>
+<p>Cloudflare supports a CNAME on the apex domain (CNAME flattening), which many registrars do not.</p>
+
+<h2 id="proxy-and-ssl">Proxy and SSL modes</h2>
+<p>Each A, AAAA and CNAME record has a proxy toggle. <strong>Proxied</strong> (orange cloud) sends traffic through Cloudflare. <strong>DNS only</strong> (grey cloud) just answers the DNS query, and visitors connect to your host directly.</p>
+<p>When a record is proxied, the SSL/TLS encryption mode controls how Cloudflare connects to your origin:</p>
+<table>
+<tr><th>Mode</th><th>Visitor to Cloudflare</th><th>Cloudflare to origin</th><th>Use it?</th></tr>
+<tr><td>Flexible</td><td>HTTPS</td><td>HTTP</td><td>Avoid. Causes redirect loops with hosts that force HTTPS.</td></tr>
+<tr><td>Full</td><td>HTTPS</td><td>HTTPS, certificate not checked</td><td>Only as a temporary step</td></tr>
+<tr><td>Full (strict)</td><td>HTTPS</td><td>HTTPS, valid certificate required</td><td>Yes. Vercel, Render and most hosts have valid certificates.</td></tr>
+</table>
+<div class="callout warn"><div><b>"Too many redirects"</b>This almost always means the mode is Flexible while your host redirects HTTP to HTTPS. Set SSL/TLS to Full (strict).</div></div>
+
+<h2 id="with-vercel-and-render">Using Cloudflare with Vercel and Render</h2>
+<h3>Vercel</h3>
+<p>Vercel already runs its own CDN and issues certificates. Vercel recommends <strong>DNS only</strong> records. Proxying through Cloudflare adds a second CDN, can interfere with certificate renewal and hides real visitor IPs from Vercel's firewall.</p>
+<ol class="steps">
+<li><b>Add the domain in Vercel first</b>Project, Settings, Domains. Note the A and CNAME values it gives you.</li>
+<li><b>Create those records in Cloudflare</b>Set the proxy status to DNS only.</li>
+<li><b>Wait for the green check in Vercel</b>Vercel then issues the certificate.</li>
+</ol>
+
+<h3>Render</h3>
+<ol class="steps">
+<li><b>Add the custom domain in Render</b>Service, Settings, Custom Domains.</li>
+<li><b>Create a CNAME in Cloudflare</b>Point it at <code>your-service.onrender.com</code>. Start with DNS only so Render can verify the domain and issue its certificate.</li>
+<li><b>Optionally turn on the proxy</b>Once Render shows the certificate as issued, you can proxy the record. Set SSL/TLS to Full (strict).</li>
+</ol>
+
+<h2 id="workers">Workers</h2>
+<p>A Worker is a JavaScript or TypeScript module with a <code>fetch</code> handler. It starts in milliseconds with no cold-start delay, which makes it great for small APIs, redirects, webhooks and edge logic.</p>
+<pre data-lang="sh">
+npm create cloudflare@latest -- my-worker   # pick "Hello World" and TypeScript
+cd my-worker
+npx wrangler dev        # local server on http://localhost:8787
+npx wrangler deploy     # live on my-worker.your-subdomain.workers.dev
+</pre>
+<pre data-file="src/index.ts" data-lang="ts">
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url)
+
+    if (url.pathname === '/api/time') {
+      return Response.json({ now: new Date().toISOString() })
+    }
+    return new Response('Not found', { status: 404 })
+  },
+}
+</pre>
+<p>Configuration lives in <code>wrangler.jsonc</code>. Variables go in <code>vars</code>, and secrets are set from the CLI so they never touch your repo:</p>
+<pre data-file="wrangler.jsonc" data-lang="json">
+{
+  "name": "my-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "vars": { "APP_ENV": "production" },
+  "triggers": { "crons": ["*/30 * * * *"] }
+}
+</pre>
+<pre data-lang="sh">
+npx wrangler secret put API_TOKEN   # prompts for the value
+</pre>
+
+<h3>Scheduled Workers</h3>
+<p>With a <code>triggers.crons</code> entry, add a <code>scheduled</code> handler. This is a reliable free alternative for jobs that run every few minutes, such as keep-alive pings.</p>
+<pre data-lang="ts">
+export default {
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(fetch('https://my-api.onrender.com/healthz'))
+  },
+}
+</pre>
+
+<h3>Static sites</h3>
+<p>Workers can serve a folder of static files alongside your code. Add <code>"assets": { "directory": "./dist" }</code> to <code>wrangler.jsonc</code> and run <code>wrangler deploy</code>. Requests for static files are free and do not count toward the daily request limit.</p>
+
+<h2 id="r2">R2 object storage</h2>
+<p>R2 stores files like S3 does, but you never pay for downloads. It is a good home for user uploads, images and backups.</p>
+<pre data-lang="sh">
+npx wrangler r2 bucket create my-uploads
+npx wrangler r2 object put my-uploads/hello.txt --file ./hello.txt
+</pre>
+
+<h3>From a Worker</h3>
+<p>Bind the bucket in <code>wrangler.jsonc</code>, then use it through <code>env</code>:</p>
+<pre data-file="wrangler.jsonc" data-lang="json">
+{
+  "r2_buckets": [{ "binding": "UPLOADS", "bucket_name": "my-uploads" }]
+}
+</pre>
+<pre data-lang="ts">
+// Upload
+await env.UPLOADS.put('avatars/42.png', request.body)
+
+// Download
+const obj = await env.UPLOADS.get('avatars/42.png')
+if (!obj) return new Response('Not found', { status: 404 })
+return new Response(obj.body, { headers: { 'Content-Type': 'image/png' } })
+</pre>
+
+<h3>From Python or any S3 client</h3>
+<p>Create an API token in R2, Manage API tokens. You get an access key id and secret. The endpoint uses your account id, and the region is always <code>auto</code>.</p>
+<pre data-file="r2.py" data-lang="py">
+import os
+import boto3
+
+s3 = boto3.client(
+    "s3",
+    endpoint_url=f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com",
+    aws_access_key_id=os.environ["R2_ACCESS_KEY_ID"],
+    aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
+    region_name="auto",
+)
+
+s3.upload_file("report.pdf", "my-uploads", "reports/report.pdf")
+
+# Temporary download link, valid for one hour
+url = s3.generate_presigned_url(
+    "get_object", Params={"Bucket": "my-uploads", "Key": "reports/report.pdf"}, ExpiresIn=3600
+)
+</pre>
+<p>To serve a bucket publicly, connect a custom domain to it in the bucket settings. The <code>r2.dev</code> public URL is rate limited and meant for development.</p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+<details><summary>ERR_TOO_MANY_REDIRECTS</summary><div><p>Set SSL/TLS mode to Full (strict). Flexible mode plus an HTTPS redirect on your host loops forever.</p></div></details>
+<details><summary>Custom domain stuck on "invalid configuration" in Vercel or Render</summary><div><p>Turn the record to DNS only until the host verifies it and issues a certificate.</p></div></details>
+<details><summary>Worker returns error 1027</summary><div><p>The account passed 100,000 requests for the day. It resets at midnight UTC. Serve static files as Worker assets so they do not count.</p></div></details>
+<details><summary>Worker fails with "exceeded CPU time limit"</summary><div><p>The free plan allows 10 ms of CPU per request. Waiting on <code>fetch</code> does not count, but heavy parsing or crypto does. Move that work elsewhere or upgrade.</p></div></details>
+<details><summary>Email stopped working after moving DNS</summary><div><p>The scan missed your MX or TXT records. Copy them from your old provider.</p></div></details>
